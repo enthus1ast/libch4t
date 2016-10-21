@@ -7,7 +7,6 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
-
 ## This will stress libch4t
 import net
 import strutils

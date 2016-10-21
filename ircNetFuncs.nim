@@ -7,9 +7,9 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
+## Procs for the actual network communication
 
-
-import ch4tdef
+import ircDef
 import ircParsing
 import asyncnet, asyncdispatch
 import config
@@ -21,7 +21,6 @@ proc sendToClient*(client: Client, msg: string): Future[bool] {.async.} =
     if client.socket.isClosed():
       return false
     try:
-      echo client
       await client.socket.send( msg )
     except:
       echo "Send to client breaks.."
@@ -29,13 +28,10 @@ proc sendToClient*(client: Client, msg: string): Future[bool] {.async.} =
     return true      
 
 proc recvFromClient*(client: Client): Future[IrcLineIn] {.async.} = 
-  echo "recvFromClient"
-  result.command = TError
-
+  result.command = TError # error until we set something else
   try:
     var lineRawFut = client.socket.recvLine()
     var lineRaw = await lineRawFut
-    echo ">>> ", lineRaw
     result = parseIncoming(lineRaw)
   except:
     echo("client socket died unexpected at recvLine")
@@ -44,8 +40,6 @@ proc sendToRoom*(rooms: TableRef[string, Room], room: string, msg: string) =
   # sends a message to all users in a room
   if rooms.contains(room):
     for username in rooms[room].clients:
-      # if not connectedClient.isNil():
-        # asyncCheck connectedClient[].sendToClient( msg )
         if clients.contains(username):
             var client = clients[username]
             asyncCheck client.sendToClient(msg)
@@ -60,15 +54,11 @@ proc sendMotd*(client: Client, modt: string) =
   for line in modt.split("\n"):
     outp.add(forgeAnswer(newIrcLineOut(SERVER_NAME, T372, @[client.nick], "-" & line)))
   outp.add(forgeAnswer(newIrcLineOut(SERVER_NAME, T376, @[client.nick], "End of /MOTD command.")))
-  echo("SEND MOTD to: " & $client)
   asyncCheck client.sendToClient(outp)
 
 
-
 proc pingClient*(client: Client): Future[bool] {.async.}  =
-  # var lineRaw: string
   var line: IrcLineIn
-  echo("PINGING client: " & $client)
 
   try:
     var gotten = await client.sendToClient(forgeAnswer(newIrcLineOut("",TPing,@[],PING_MSG)))

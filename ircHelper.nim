@@ -7,9 +7,9 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
-
+## Helper functions
 import tables
-import ch4tdef
+import ircDef
 import sets
 
 proc isUsernameUsed*(clients: Clients, user: string): bool =

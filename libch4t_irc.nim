@@ -7,22 +7,24 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
-
+## This is the IRC Transport of libch4t.
+## ATM its just a irc server 
 
 import asyncnet, asyncdispatch, strutils, sequtils, tables
-import ch4tdef
+import ircDef
 import config
 import ircParsing
 import logging
-import netFuncs
+import ircNetFuncs
 import ircHandler
 import ircAuth
-import helper
+import ircHelper
 import sets
 
 proc isOperator(client: Client): bool = 
   ## TODO
   return true
+
 
 proc authenticated(client: Client): bool = 
   # if the client is authenticated
@@ -32,65 +34,53 @@ proc authenticated(client: Client): bool =
     return false
 
 
-
 proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.} =
-  var client: Client = newClient(socket) # we create an client even if not authenticated yet
-  # try:
+  var 
+    client: Client = newClient(socket) # we create an client even if not authenticated yet
+    ircLineIn: IrcLineIn
+    line: string = ""
+
   client = await handleIrcAuth(client) # this will fill in the user/nick
   if client is void:
     return 
-  # except:
-    # echo "Exception in handleIrcAuth catched in processClient"
-    # return false
-
-  echo "nick in PROCESS CLIENT: ", client
-  # if client.nick == "" or client.user == "":
-  #   return
-  clients[client.user] = client
-
-  var ircLineIn: IrcLineIn
-  var line: string = ""
+  clients[client.user] = client 
 
   while true:
     try:
       line = await client.socket.recvLine()
-      echo line
+      echo "> ", line
     except:
       break 
 
     try:
       if line == "":
-        echo("client leaves, break out of main loop...52")
-        # tell every channel the client was joined that he has left
+        echo("client leaves break out of main loop: ", client)
+        
+        # tell every room the client was joined that he has left
         for room in rooms.getRoomsByNick(client.nick):
           rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected!")))
         break
 
-      echo "> ", line
       ircLineIn = parseIncoming(line)
 
       if ircLineIn.command == TError:
-        # if we the parser decided that this is an error
         discard client.sendToClient( forgeAnswer(newIrcLineOut(SERVER_NAME,TError,@[],"Could not parse line")) )
-        echo("Could not parse line 609: " & line)
-        # error(getCurrentException().name)
+        echo("Could not parse line: " & line)
         echo(getCurrentExceptionMsg())
         continue
     except:
-      # if the parser thrown an exception while parsing.
+      echo("Could not parse line (EXCEPION): " & line)
       echo(getCurrentExceptionMsg())
       continue
 
     if ircLineIn.command == TQuit:
-      echo "client will quit.."
+      echo "client will quit removeing socket for: " , client
       client.socket.close()
-      echo client
       break
 
     ## Handles for every msg type.
     # client.hanTUser(ircLineIn) # TODO
     client.hanTNick(ircLineIn) # TODO
-
     if client.authenticated():
       client.hanTDebug(ircLineIn)
       client.hanTPing(ircLineIn)
@@ -105,7 +95,6 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       # client.hanTDump(ircLineIn)
       # client.hanTWho(ircLineIn)
       client.hanTMotd(ircLineIn)
-
 
       ## Handles for operator only
       if client.isOperator():
@@ -122,7 +111,6 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     if c == client:
       echo "[info] removing ", client
       try:
-        echo clients
         clients.del i
       except:
         # debug("could not remove client $1 from clients" % [client.user] )
@@ -134,8 +122,6 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     if room.clients.contains(client.user):
       rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected")) )
       rooms[room.name].clients.excl(client.user)
-
-
 
 
 proc serveClient {.async.} =

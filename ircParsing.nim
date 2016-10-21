@@ -7,10 +7,10 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
-
+## Procedures to parse the IRC protocol
 
 import logging
-import ch4tdef 
+import ircDef 
 import strutils
 import config
 
@@ -55,7 +55,6 @@ proc parseIncoming * (rawline: string): IrcLineIn =
   # example:
   # PRIVMSG #kl :hallo
   # PING :12345
-  debug("INCOMING: " & rawline)
   var line: string = rawline
   var headerPart: string
   var lineParts : seq[string]
@@ -111,7 +110,6 @@ proc forgeAnswer * (ircLine: IrcLineOut): string =
     result.add(" :")
     result.add(ircLine.trailer)
   result.add("\n")
-  debug("FORGED (ANSWER): " & result.strip() )
 
 
 proc `$` * ( ircLine: IrcLineOut): string = 

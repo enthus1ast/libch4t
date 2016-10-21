@@ -15,8 +15,8 @@ import random
 import net
 import strutils
 import sequtils
-import "../ircParsing"
-import "../ch4tdef"
+import "../../ircParsing"
+import "../../ch4tdef"
 
 const
   BOTNAME = "nrv"
