@@ -16,6 +16,40 @@ import tables
 import strutils
 import ircParsing
 import netfuncs
+import config
+
+
+proc hanTAway*(client: var Client, line: IrcLineIn) =
+  ## Set the away msg to a user
+  ## ex:
+  ## AWAY :I'm busy
+  var awayMessage: string
+  if line.command == TAway:
+    echo line
+    echo clients
+    if line.trailer.len > 0: # Mark as away
+      awayMessage = line.trailer
+    elif line.params.len > 0: # Mark as away
+      awayMessage = line.params[0]
+    else: # Mark as comeback
+      awayMessage = ""
+      echo("- Client $1 become available!" % [client.user,])
+    client.away = awayMessage
+    echo("- Client $1 is away: $2" % [client.user, client.away])
+
+
+proc hanTNames*(client: Client, line: IrcLineIn ) =
+  # line.params[0] == "#foo,#baa"
+  if line.command == TNames: # or line.command == TWho:
+    if line.params.len > 0:
+      client.sendTNames(line.params[0])
+
+
+proc hanTMotd*(client: Client, line: IrcLineIn) =
+  if line.command == TMotd:
+    echo("GOT MOTD FROM:" & $client)
+    client.sendMotd(MOTD)
+
 
 template hanTUser*(client: Client, line: IrcLineIn) =
   ## USER enthus1ast * irc.freenode.net :ent
@@ -44,7 +78,6 @@ template hanTNick*(client: Client, line: IrcLineIn) =
     if line.params.len > 0:
       var nick = line.params[0] #.strip()
       if nick.validUserName() and not clients.isNicknameUsed(nick):
-        # result.nick = nick
         client.nick = nick
         echo("GOT VALID NICK FROM: " & $client)
       else:
@@ -68,7 +101,6 @@ template hanTPing*(client: Client, line: IrcLineIn) =
       # ping 1234
       discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], join(line.params," ") )))
     elif (line.params.len() > 0 and line.trailer.len == 0) or (line.params.len == 0 and line.trailer.len > 0) or (line.params.len > 0 and line.trailer.len > 0):
-      # let answer = (line.raw.strip())[len($TPing)..^1]
       # discard client.sendToClient(forgeAnswer((SERVER_NAME, TPong, @[], answer)))
       discard #TODO debug
 
@@ -98,23 +130,24 @@ template hanTJoin*(client: Client, line: IrcLineIn) =
         debug "there is a room named ", roomToJoin
         var roomObj = rooms[roomToJoin]
         roomObj.clients.incl(client.user)
+
         # Tell the client he has joined
         discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick & "!" & SERVER_NAME,TJoin,@[roomToJoin],"")))
-        # tell everyone we're just joined
-        # by sending userlist to everybody
+        
         rooms[roomToJoin] = roomObj
       else:
         debug "creating room ", roomToJoin
         rooms.add(roomToJoin, newRoom(roomToJoin))
-        # discard rooms[roomToJoin].clients.mgetOrPut(client.user, cast[ref Client](addr(client)))
         rooms[roomToJoin].clients.incl(client.user)
         discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick & "!" & SERVER_NAME, TJoin, @[roomToJoin], "")))
-      # Was wir nachm join machen
-      # discard client.pingClient()
+
+      # tell everyone we're just joined
+      # by sending userlist to everybody        
       rooms.sendToRoom(roomToJoin, forgeAnswer(newIrcLineOut(client.nick, TJoin, @[roomToJoin],"" )))
-    # we initially send the names list to clients.
-    # let them update their user list
-    client.sendTNames(line.params[0])
+      
+      # we initially send the names list to clients.
+      # let them update their user list
+      client.sendTNames(roomToJoin)
 
 
 proc hanTPart*(client: Client, line: IrcLineIn) =
@@ -151,6 +184,7 @@ proc hanTPart*(client: Client, line: IrcLineIn) =
 proc hanTPrivmsg*(client:Client, line: IrcLineIn) =
   # privmsg #lobby :was geht ab
   # privmsg sn0re :moin sn0re!
+  # TODO away is a little bit funny....
 
   if line.command == TPrivmsg:
     echo("GOT PRIVMSG FROM:" & $client)
@@ -163,7 +197,6 @@ proc hanTPrivmsg*(client:Client, line: IrcLineIn) =
 
     # if line.params[0].validRoomName():  # 
     if line.params[0].startswith("#") or line.params[0].startswith("&"):
-      echo "THIS IS  MESSAGE TO A ROOM"
       let roomToSend = line.params[0]
       # we send to a room historically a room in irc could start with '#' or '&''
 

@@ -127,3 +127,4 @@ proc sendTNames*(client: Client, roomname: string, lineByLine: bool = false) =
   ## join can be like:
   ## join #room1,&room2
   client.sendTNames(roomname.split(","), lineByLine)
+

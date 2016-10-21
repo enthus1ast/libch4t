@@ -60,16 +60,10 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
 
     try:
       if line == "":
-        # client leaves
         echo("client leaves, break out of main loop...52")
         # tell every channel the client was joined that he has left
-        # clients.del(client.user) # wenn user nicht deklariert ist?
-        # for room in rooms.getRoomsByNick(client.nick):
-        #   echo room
-        #   for username in room.clients:
-        #     var connectedClient = clients[username]
-        #     discard connectedClient.sendToClient( forgeAnswer((client.nick,TPart,@[room.name] ,"client disconnected!")))
-        #  # room.send( forgeAnswer((SERVER_NAME, TPart, )) )
+        for room in rooms.getRoomsByNick(client.nick):
+          rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected!")))
         break
 
       echo "> ", line
@@ -77,17 +71,13 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
 
       if ircLineIn.command == TError:
         # if we the parser decided that this is an error
-        # discard client.sendToClient( forgeAnswer((SERVER_NAME,TError,@[],"Could not parse line")) )
+        discard client.sendToClient( forgeAnswer(newIrcLineOut(SERVER_NAME,TError,@[],"Could not parse line")) )
         echo("Could not parse line 609: " & line)
         # error(getCurrentException().name)
         echo(getCurrentExceptionMsg())
         continue
     except:
       # if the parser thrown an exception while parsing.
-      # TODO dump error to logfile
-      # error("Could not parse line 616: " & line)
-      # error(getCurrentException().name)
-      # error(getCurrentException().msg)
       echo(getCurrentExceptionMsg())
       continue
 
@@ -98,8 +88,8 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       break
 
     ## Handles for every msg type.
-    client.hanTUser(ircLineIn) # TODO
-    # client.hanTNick(ircLineIn) # TODO know buggy
+    # client.hanTUser(ircLineIn) # TODO
+    client.hanTNick(ircLineIn) # TODO
 
     if client.authenticated():
       client.hanTDebug(ircLineIn)
@@ -107,14 +97,14 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       client.hanTPong(ircLineIn)
       client.hanTJoin(ircLineIn)
       client.hanTPart(ircLineIn)
-      # client.hanTNames(ircLineIn)
+      client.hanTNames(ircLineIn)
       client.hanTPrivmsg(ircLineIn)
       # client.hanTUserhost(ircLineIn)
-      # client.hanTAway(ircLineIn)
+      client.hanTAway(ircLineIn)
       # client.hanTCap(ircLineIn)
       # client.hanTDump(ircLineIn)
       # client.hanTWho(ircLineIn)
-      # client.hanTMotd(ircLineIn)
+      client.hanTMotd(ircLineIn)
 
 
       ## Handles for operator only
@@ -142,8 +132,8 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
   # Then remove client from every room its connected
   for room in rooms.values:
     if room.clients.contains(client.user):
-      rooms[room.name].clients.excl(client.user)
       rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected")) )
+      rooms[room.name].clients.excl(client.user)
 
 
 

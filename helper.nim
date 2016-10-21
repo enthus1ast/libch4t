@@ -23,18 +23,20 @@ proc isNicknameUsed*(clients: Clients, nick: string): bool =
       return true
     return false  
 
-proc getRoomsByNick*(rooms: TableRef[string, Room], nick: string): seq[Room] =
-  result = @[]
-  for room in rooms.values:
-    if room.clients.contains(nick):
-      result.add(room)
-      continue    
 
 proc getClientByNick*(clients: TableRef[string, Client], nick: string ): Client =
   # einaml returnd die scheisse Client
   for client in clients.values:
     if client.nick == nick:
       return client      
+
+proc getRoomsByNick*(rooms: TableRef[string, Room], nick: string): seq[Room] =
+  var username = clients.getClientByNick(nick).user
+  result = @[]
+  for room in rooms.values:
+    if room.clients.contains(username):
+      result.add(room)
+      continue    
 
 proc isAway*(client: Client): bool =
   return client.away.len > 0      

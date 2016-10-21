@@ -28,9 +28,11 @@ proc validMode * (modestr: string): bool =
   else:
     return false
 
+
 proc validRoomName * (s: string): bool =
   result = (s != "" and (s.startsWith("#") or s.startsWith("&")) and s.len < MAX_ROOMNAME_LEN and not s.contains(" ") and not s.contains(",") and not s.contains('\x07'))
   debug("ROOMNAME [$1] valid [$2]" % [s,$result])
+
 
 proc validUserName * (s: string): bool =
   result = true
@@ -46,6 +48,7 @@ proc validUserName * (s: string): bool =
     error("username has invalid chars[2]: ", s)
     result = false
   debug("USERNAME [$1] valid [$2]" % [s, $result])
+
 
 proc parseIncoming * (rawline: string): IrcLineIn =
   # this parses the client to server line,
@@ -96,6 +99,7 @@ proc parseIncoming * (rawline: string): IrcLineIn =
   result.params = lineParts[1..^1]
   result.raw = rawline
 
+
 proc forgeAnswer * (ircLine: IrcLineOut): string =
   ## This generates an irc line
   result = ""
@@ -109,8 +113,10 @@ proc forgeAnswer * (ircLine: IrcLineOut): string =
   result.add("\n")
   debug("FORGED (ANSWER): " & result.strip() )
 
+
 proc `$` * ( ircLine: IrcLineOut): string = 
   return forgeAnswer(ircLine)
+
 
 
 proc parsingSelftest * () =
@@ -148,8 +154,6 @@ proc parsingSelftest * () =
   assert "   ".removeDoubleWhite() == " " # 3 to 1
   assert "".removeDoubleWhite() == ""
   assert " ".removeDoubleWhite() == " " # 1 to 1
-
-
 
   assert parseIncoming("PRIVMSG #klangfragment :moin") == 
     newIrcLineIn(TPrivmsg, @["#klangfragment"], "moin", "PRIVMSG #klangfragment :moin","")
@@ -229,11 +233,9 @@ proc parsingSelftest * () =
   assert parseIncoming("NAMES bernhard") == 
     newIrcLineIn(TNames, @["bernhard"],"","NAMES bernhard","")
 
-  # is das so super? 
   assert parseIncoming("NAMES #kl,#lobby") == 
     newIrcLineIn(TNames, @["#kl,#lobby"],"","NAMES #kl,#lobby","")
 
-  # echo parseIncoming("NAMES #kl, #lobby")
   # assert parseIncoming("NAMES #kl, #lobby") == newIrcLineIn(Terror, @[],"") # parameter mit komma und lerzeilen sind verfickt,g("NAMES #kl, #lobby"?
   # parameter mit komma und lerzeilen sind verfickt?
   assert parseIncoming("NAMES #kl, #lobby") == 
@@ -242,6 +244,9 @@ proc parsingSelftest * () =
   assert parseIncoming("ping 20:23:48") == 
     newIrcLineIn(TPing, @["20:23:48"],"","ping 20:23:48","")
     
-
   # in quakenet ist das ein error
   # assert parseIncoming("NAMES #kl #lobby") == (TNames, @["#kl","#lobby"],"") # is das so super? 
+
+
+when isMainModule:
+  parsingSelftest()
