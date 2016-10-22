@@ -7,7 +7,7 @@
 #    See the file "copying.txt", included in this
 #    distribution, for details about the copyright.
 #
-## Definition of data structures and access procedures we need in the whole project.
+## Definition of data structures and procedures we need in the whole project.
 
 import sequtils
 import asyncnet

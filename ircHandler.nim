@@ -155,8 +155,11 @@ proc hanTPart*(client: Client, line: IrcLineIn) =
             echo("No such room: ", room)
       for room in roomsToLeave:
         try:  
-          rooms.sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
           rooms.mget(room).clients.excl(client.user)
+          rooms.sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
+          if rooms[room].clients.len == 0:
+            echo "room is empty remove it 161 ", room
+            rooms.del(room)          
         except:
           echo("User ", client.user , " is not in room ", room)     
 
@@ -179,7 +182,7 @@ proc hanTPrivmsg*(client:Client, line: IrcLineIn) =
           for connectedClient in rooms[roomToSend].clients:
             let answer = forgeAnswer(newIrcLineOut(client.nick,TPrivmsg,@[roomToSend], newTrailer))
             if connectedClient != client.user: #exlude ourself
-              echo $TPrivmsg, " to " , connectedClient , " -> " , answer
+              echo $TPrivmsg, " to " , connectedClient , " -> " , answer.strip()
               discard clients[connectedClient].sendToClient(answer)
     else:
       # this is a private message to a user

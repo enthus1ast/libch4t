@@ -58,7 +58,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
         
         # tell every room the client was joined that he has left
         for room in rooms.getRoomsByNick(client.nick):
-          rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected!")))
+          rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected! 61")))
         break
 
       ircLineIn = parseIncoming(line)
@@ -106,6 +106,23 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
 
     clients[client.user] = client # Updates the clients list
 
+
+  # Remove client from every room its connected
+  var roomsToDelete: seq[string] = @[]
+  for room in rooms.values:
+    if room.clients.contains(client.user):
+      rooms[room.name].clients.excl(client.user)
+      rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected 114")) )
+      if rooms[room.name].clients.len == 0:
+        # room is empty remove it
+        echo "room is empty remove it 117 ", room
+        roomsToDelete.add(room.name)
+
+  for roomname in roomsToDelete:
+    rooms.del(roomname)
+
+
+
   # Remove client from list when they disconnect.
   for i,c in clients:
     if c == client:
@@ -116,13 +133,6 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
         # debug("could not remove client $1 from clients" % [client.user] )
         debug("could not remove client from clients" )
       break
-
-  # Then remove client from every room its connected
-  for room in rooms.values:
-    if room.clients.contains(client.user):
-      rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected")) )
-      rooms[room.name].clients.excl(client.user)
-
 
 proc serveClient {.async.} =
   var server = newAsyncSocket()

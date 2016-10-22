@@ -23,7 +23,6 @@ proc isNicknameUsed*(clients: Clients, nick: string): bool =
       return true
     return false  
 
-
 proc getClientByNick*(clients: TableRef[string, Client], nick: string ): Client =
   # einaml returnd die scheisse Client
   for client in clients.values:
