@@ -1,5 +1,5 @@
 # libch4t
-IRC server toys in nim
+IRC server in nim
 
 edit:
     
@@ -14,3 +14,17 @@ run:
     libch4t_irc
     
 to get a simple irc server in nim
+
+# features
+- user/nick 'login'
+- NICK change nick
+- JOIN
+- PART
+- WHO
+- NAMES
+- PRIVMSG
+- PING / PONG
+- AWAY
+- DUMP # sends some debug info to caller
+- DEBUG # echo debug info
+- MOTD
