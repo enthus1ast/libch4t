@@ -21,34 +21,35 @@ type
     TJoin = "JOIN",
     TUser = "USER",
     T001 = "001",
-    T352 = "352", # answer to who
-    T315 = "315", # end who list
-    T353 = "353", # answer names
-    T366 = "366", # end names list
-    T301 = "301", # Away reply for sender
+    T352 = "352", ## answer to who
+    T315 = "315", ## end who list
+    T353 = "353", ## answer names
+    T366 = "366", ## end names list
+    T301 = "301", ## Away reply for sender
     TNick = "NICK",
     TWho = "WHO",
     TNames = "NAMES",
     TPrivmsg = "PRIVMSG",
     TMode = "MODE",
-    T375 = "375", # start server modt
-    T372 = "372", # a line of modt
-    T376 = "376" # end of modt :End of /MOTD command.
+    T375 = "375", ## start server modt
+    T372 = "372", ## a line of modt
+    T376 = "376" ## end of modt :End of /MOTD command.
     TError = "ERROR",
     TMotd = "MOTD",
     TPart = "PART",
     TNotice = "NOTICE",
     TUserhost = "USERHOST",
     TAway = "AWAY",
-    TWall = "WALL", # IRC?
+    TWall = "WALL", ## IRC? 
     # TWall = "ALL", # this is not irc ...
-    TByeBye = "BYEBYE", # not IRC
-    TCap = "CAP", # wtf is CAP????
-    TDump = "DUMP", # returns structures, not IRC
-    TKick = "KICK",
-    TKickHard = "KICKHARD", # not IRC
-    TQuit = "QUIT"
-    TDebug = "DEBUG" # like dump but only printing to stdout, not IRC
+    TByeBye = "BYEBYE", ## not IRC
+    TCap = "CAP", ## wtf is CAP????
+    TDump = "DUMP", ## returns structures, not IRC
+    TKick = "KICK", ## removes client from room
+    TKickHard = "KICKHARD", ## not IRC removes client from server
+    TQuit = "QUIT", 
+    TDebug = "DEBUG", ## like dump but only printing to stdout, not IRC
+    TWhois = "WHOIS" ## get info about a user
 
 
   # who is set on [server -> client] and [server -> server ] communication only!
@@ -79,8 +80,9 @@ type
   Clients * = TableRef[string, Client]
   Rooms * = TableRef[string, Room]
 
-var clients * = newTable[string, Client]() # string = client name
-var rooms * = newTable[string, Room]()
+var 
+    clients * = newTable[string, Client]() # string = client name
+    rooms * = newTable[string, Room]()
 
 proc newClient*(socket: AsyncSocket, user = "", nick = "", away = ""): Client =
    Client(socket: socket, user: user, nick: nick, away: away)

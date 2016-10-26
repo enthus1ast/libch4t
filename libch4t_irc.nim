@@ -58,7 +58,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
         
         # tell every room the client was joined that he has left
         for room in rooms.getRoomsByNick(client.nick):
-          rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected! 61")))
+          sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected! 61")))
         break
 
       ircLineIn = parseIncoming(line)
@@ -82,7 +82,6 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     # client.hanTUser(ircLineIn) # TODO
     client.hanTNick(ircLineIn) # TODO
     if client.authenticated():
-      client.hanTDebug(ircLineIn)
       client.hanTPing(ircLineIn)
       client.hanTPong(ircLineIn)
       client.hanTJoin(ircLineIn)
@@ -92,12 +91,13 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       # client.hanTUserhost(ircLineIn)
       client.hanTAway(ircLineIn)
       # client.hanTCap(ircLineIn)
-      # client.hanTDump(ircLineIn)
-      # client.hanTWho(ircLineIn)
+      client.hanTWho(ircLineIn)
       client.hanTMotd(ircLineIn)
 
       ## Handles for operator only
       if client.isOperator():
+        client.hanTDump(ircLineIn)
+        client.hanTDebug(ircLineIn)
       #  client.hanTByeBye(ircLineIn)
       #  client.hanTKick(rooms,ircLineIn)
       #  client.hanTKickHard(ircLineIn)
@@ -112,9 +112,10 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
   for room in rooms.values:
     if room.clients.contains(client.user):
       rooms[room.name].clients.excl(client.user)
-      rooms.sendToRoom(room.name, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected 114")) )
+      ## TODO Maybe bug?? One of each is good here..
+      sendToRoom(room, forgeAnswer( newIrcLineOut(SERVER_NAME, TPart, @[room.name, client.nick], "Client disconnected (TPart) 116")) )
+      sendToRoom(room, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected (TQuit) 117")) )
       if rooms[room.name].clients.len == 0:
-        # room is empty remove it
         echo "room is empty remove it 117 ", room
         roomsToDelete.add(room.name)
 
@@ -130,7 +131,6 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       try:
         clients.del i
       except:
-        # debug("could not remove client $1 from clients" % [client.user] )
         debug("could not remove client from clients" )
       break
 
@@ -141,15 +141,21 @@ proc serveClient {.async.} =
   let iface  = IRC_IFACE
   server.bindAddr(port,address=iface)
   server.listen()
+
+  echo "##################################################"
+  echo "### libch4t irc transport started up on ", IRC_PORT
+  echo "##################################################\n"
+
   while true:
     try:
       let socketClient = await server.acceptAddr()
       echo("Connection on client port from: ", socketClient.address)
-      # echo await processClient(socketClient.address,socketClient.client)
       asyncCheck processClient(socketClient.address,socketClient.client)
     except:
       echo("Accept addr is fuckd")
 
+when not defined release:
+  parsingSelftest()
 
 asyncCheck serveClient()
 runForever()

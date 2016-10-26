@@ -9,7 +9,7 @@
 #
 ## Procedures to parse the IRC protocol
 
-import logging
+# import logging
 import ircDef 
 import strutils
 import config
@@ -31,23 +31,26 @@ proc validMode * (modestr: string): bool =
 
 proc validRoomName * (s: string): bool =
   result = (s != "" and (s.startsWith("#") or s.startsWith("&")) and s.len < MAX_ROOMNAME_LEN and not s.contains(" ") and not s.contains(",") and not s.contains('\x07'))
-  debug("ROOMNAME [$1] valid [$2]" % [s,$result])
+  echo("ROOMNAME [$1] valid [$2]" % [s,$result])
 
 
 proc validUserName * (s: string): bool =
   result = true
   # TODO check for ASCII
   # TODO white listening instead of blacklisting!!
-  if s.len == 0 or s.len > MAX_USERNAME_LEN:
-    error("username to long: ", s)
+  if s.strip().len == 0 or s.len > MAX_USERNAME_LEN:
+    echo("username to long: ", s)
+    result = false
+  if s.strip().startswith("#") or s.strip().startswith("&"):
+    echo("usernames cannot start with '#' or '&'")
     result = false
   if s[0] in "1234567890+-" and result:
-    error("username has invalid chars[1]: ", s)
+    echo("username has invalid chars[1]: ", s)
     result = false
   if ";" in s or "," in s or ":" in s and result:
-    error("username has invalid chars[2]: ", s)
+    echo("username has invalid chars[2]: ", s)
     result = false
-  debug("USERNAME [$1] valid [$2]" % [s, $result])
+  echo("USERNAME [$1] valid [$2]" % [s, $result])
 
 
 proc parseIncoming * (rawline: string): IrcLineIn =
@@ -62,7 +65,7 @@ proc parseIncoming * (rawline: string): IrcLineIn =
   line = line.strip() # TODO should we do this?
   if line == "":
     result.command=TError
-    debug("Could not parse line: line empty")
+    echo("Could not parse line: line empty")
     return 
   if line.startswith(":"):
     # this is a server to server OR
@@ -80,7 +83,7 @@ proc parseIncoming * (rawline: string): IrcLineIn =
       line = line[result.who.len+1..^1] # consume the word + trailing whitespace
     else: 
       result.command = TError
-      debug("Could not parse line: No valid room/username in `who` ")
+      echo("Could not parse line: No valid room/username in `who` ")
       return 
   else:
     # nobody told us who has written the msg.
@@ -141,6 +144,10 @@ proc parsingSelftest * () =
   assert validUserName("+sn[]r3_") == false # plus at first char (check that)
   assert validUserName("|JPETER-PC/jpeter") == true
   assert validUserName("[E]|JPETER-PC/jpeter") == true
+  assert validUserName("#lobby") == false # user cannot be known as a roomname
+  assert validUserName("&lobby") == false # user cannot be known as a roomname
+  assert validUserName("") == false
+  assert validUserName(" ") == false
   # assert validUserName("über") == false  # check unicode
   # assert validUserName("aße*r") == false # check unicode
 
@@ -234,7 +241,7 @@ proc parsingSelftest * () =
   assert parseIncoming("NAMES #kl,#lobby") == 
     newIrcLineIn(TNames, @["#kl,#lobby"],"","NAMES #kl,#lobby","")
 
-  # assert parseIncoming("NAMES #kl, #lobby") == newIrcLineIn(Terror, @[],"") # parameter mit komma und lerzeilen sind verfickt,g("NAMES #kl, #lobby"?
+  # assert parseIncoming("NAMES #kl, #lobby") == newIrcLineIn(TError, @[],"") # parameter mit komma und lerzeilen sind verfickt,g("NAMES #kl, #lobby"?
   # parameter mit komma und lerzeilen sind verfickt?
   assert parseIncoming("NAMES #kl, #lobby") == 
     newIrcLineIn(TNames, @["#kl,","#lobby"],"","NAMES #kl, #lobby","")
@@ -242,7 +249,7 @@ proc parsingSelftest * () =
   assert parseIncoming("ping 20:23:48") == 
     newIrcLineIn(TPing, @["20:23:48"],"","ping 20:23:48","")
     
-  # in quakenet ist das ein error
+  # in quakenet ist das ein echo
   # assert parseIncoming("NAMES #kl #lobby") == (TNames, @["#kl","#lobby"],"") # is das so super? 
 
 

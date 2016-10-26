@@ -50,7 +50,7 @@ proc hanTUser*(client: var Client, line: IrcLineIn) =
       # TODO here we should check if the user is already logged in and if its registered
       # we should additionally check the password
       var user = line.params[0]
-      if user.validUserName() and not clients.isUsernameUsed(user):
+      if  (user != "") and (user.validUserName() == true) and (not clients.isUsernameUsed(user)):
         client.user = user
         # echo("GOT VALID USER FROM: " & $client)
       else:
@@ -59,18 +59,34 @@ proc hanTUser*(client: var Client, line: IrcLineIn) =
 
 proc hanTNick*(client: var Client, line: IrcLineIn) =
   ## TODO should change username in clients and rooms
-  ## atm this is only working for the loging
+  ## atm this is only working for the login
   if line.command == TNick:
     # TODO here we should check if the user is already logged in and if its registered
     # we should additionally check the password
+    var nick: string = ""
     if line.params.len > 0:
-      var nick = line.params[0] #.strip()
-      if nick.validUserName() and not clients.isNicknameUsed(nick):
-        client.nick = nick
-        # echo("GOT VALID NICK FROM: " & $client)
-      else:
-        echo("GOT INVALID NICK / nickname in use FROM: " & $client)
-        # discard client.socket.send("invalid nick") # invalid nick        
+      nick = line.params[0] #.strip()
+    elif line.trailer != "":
+      nick = line.trailer
+    else:
+      echo("got no user from ", client)
+      return
+
+    if (nick != "") and (nick.validUserName()) and (not clients.isNicknameUsed(nick)):
+      echo "user ", client, " changed nickname to :" , nick
+      var oldnickname = client.nick
+      client.nick = nick
+      clients[client.user] = client
+
+      # we inform our own client that we have sucessfully changed the nickname
+      discard client.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[client.nick], "" )))
+
+      # now we inform every user that should know about our namechange that we have changed names.
+      for usernameToAnswer in rooms.getParticipatingUsersByNick(client.nick):
+        var foundClient = clients[usernameToAnswer]
+        discard foundClient.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[client.nick], "" )))
+    else:
+      echo("GOT INVALID NICK / nickname in use FROM: " & $client)      
 
 
 proc hanTPing*(client: Client, line: IrcLineIn) =
@@ -91,6 +107,7 @@ proc hanTPing*(client: Client, line: IrcLineIn) =
     elif (line.params.len() > 0 and line.trailer.len == 0) or (line.params.len == 0 and line.trailer.len > 0) or (line.params.len > 0 and line.trailer.len > 0):
       # discard client.sendToClient(forgeAnswer((SERVER_NAME, TPong, @[], answer)))
       discard #TODO debug
+
 
 proc hanTPong*(client: Client, line: IrcLineIn) =
   # if line.toUpper.startsWith(TPong):
@@ -119,19 +136,22 @@ proc hanTJoin*(client: Client, line: IrcLineIn) =
         var roomObj = rooms[roomToJoin]
         roomObj.clients.incl(client.user)
 
+        # TODO DO we need to tell the client explicit here? 
         # Tell the client he has joined
-        discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick & "!" & SERVER_NAME,TJoin,@[roomToJoin],"")))
+        # discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick & "!" & SERVER_NAME,TJoin,@[roomToJoin],"")))
         
         rooms[roomToJoin] = roomObj
       else:
         echo "creating room ", roomToJoin
         rooms.add(roomToJoin, newRoom(roomToJoin))
         rooms[roomToJoin].clients.incl(client.user)
-        discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick & "!" & SERVER_NAME, TJoin, @[roomToJoin], "")))
+
+        # TODO DO we need to tell the client explicit here? 
+        # discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick & "!" & SERVER_NAME, TJoin, @[roomToJoin], "")))
 
       # tell everyone we're just joined
       # by sending userlist to everybody        
-      rooms.sendToRoom(roomToJoin, forgeAnswer(newIrcLineOut(client.nick, TJoin, @[roomToJoin],"" )))
+      sendToRoom(rooms[roomToJoin], forgeAnswer(newIrcLineOut(client.nick, TJoin, @[roomToJoin],"" )))
       
       # we initially send the names list to clients.
       # let them update their user list
@@ -155,8 +175,8 @@ proc hanTPart*(client: Client, line: IrcLineIn) =
             echo("No such room: ", room)
       for room in roomsToLeave:
         try:  
+          sendToRoom(rooms[room], forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
           rooms.mget(room).clients.excl(client.user)
-          rooms.sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
           if rooms[room].clients.len == 0:
             echo "room is empty remove it 161 ", room
             rooms.del(room)          
@@ -201,19 +221,61 @@ proc hanTPrivmsg*(client:Client, line: IrcLineIn) =
         echo("Nick:", line.params[0], " not found")
 
 
+proc hanTWho*(client: Client, line: IrcLineIn) =
+  if line.command == TWho:
+    # TODO here we should check if the user is already logged in or joined a channel
+    # and if its registered
+    # we should additionally check the password
+    if line.params.len > 0:
+      for room in line.params[0].split(","):
+        if validRoomName(room):
+          if rooms.contains(room):
+            for clientName in rooms[room].clients:
+              var joinedClient = clients[clientName]
+              var answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T352,@[client.nick,room,joinedClient.nick, "shadowedDNS", SERVER_NAME, joinedClient.nick, ""],"0 dummyuser"))
+              answer = answer.removeDoubleWhite()
+              discard client.sendToClient(answer)
+            let answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T315,@[client.nick,room],"End of /WHO list"))
+            discard client.sendToClient(answer)
+
+
+proc genDebugStr(): string =
+    result = ""
+    result.add "-\n-\n-\n"
+    result.add "Connected Clients\n"
+    result.add "#################\n"
+    for i,each in clients:
+      result.add "[$1] $2\n" % [i, $each] 
+    
+    result.add "\n"
+    result.add "Rooms\n"
+    result.add "#####\n"
+    for room in rooms.values:
+      result.add ("Roomname: " & room.name & " " & $room.clients.len  & "\n")
+      for cl in room.clients:
+        # result.add "-- cl: " & cl & "[" & clients[cl].nick  & "]" & "\n"
+        result.add "-- cl: "  & cl & "  " & $clients[cl] & "\n"
+
+proc hanTDump*(client: Client, line: IrcLineIn) =
+  if line.command == TDump:
+    for part in genDebugStr().split("\n"):
+      discard client.sendToClient( forgeAnswer(newIrcLineOut(SERVER_NAME, TPrivmsg, @[client.nick], part )) )  
+
 
 proc hanTDebug*(client: Client, line: IrcLineIn) =
   if line.command == TDebug:
-    echo ""
-    echo "Connected Clients"
-    echo "#################"
-    for i,each in clients:
-      echo "[$1] $2" % [i, $each] 
+    echo genDebugStr()
+    # discard client.sendToClient(genDebugStr())
+    # echo ""
+    # echo "Connected Clients"
+    # echo "#################"
+    # for i,each in clients:
+    #   echo "[$1] $2" % [i, $each] 
     
-    echo ""
-    echo "Rooms"
-    echo "#####"
-    for room in rooms.values:
-      echo "Roomname: ", room.name, " ", room.clients.len
-      for cl in room.clients:
-        echo "-- cl: ", cl
+    # echo ""
+    # echo "Rooms"
+    # echo "#####"
+    # for room in rooms.values:
+    #   echo "Roomname: ", room.name, " ", room.clients.len
+    #   for cl in room.clients:
+    #     echo "-- cl: ", cl

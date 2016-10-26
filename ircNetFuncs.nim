@@ -36,15 +36,25 @@ proc recvFromClient*(client: Client): Future[IrcLineIn] {.async.} =
   except:
     echo("client socket died unexpected at recvLine")
 
-proc sendToRoom*(rooms: TableRef[string, Room], room: string, msg: string) =
+
+proc sendToRoom*(room: Room, msg: string) =
+  ## sends a message to a room, if excludeUser is a valid user do not send msg 
+  ## to this user
+  # if rooms.contains(roomname):
+  for username in room.clients:
+    if clients.contains(username):
+      var client = clients[username]
+      asyncCheck client.sendToClient(msg)
+    else:
+      echo "there is a user in a room which is not in clients list.... Bug?"
+  # else:
+  #   echo("sendToRoom: no such room: " & roomname)  
+
+
+# proc sendToRoom*(rooms: TableRef[string, Room], roomname: string, msg: string) =
   # sends a message to all users in a room
-  if rooms.contains(room):
-    for username in rooms[room].clients:
-        if clients.contains(username):
-            var client = clients[username]
-            asyncCheck client.sendToClient(msg)
-  else:
-    echo("sendToRoom: no such room: " & room)
+
+
 
 
 proc sendMotd*(client: Client, modt: string) =
