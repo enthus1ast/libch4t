@@ -36,26 +36,15 @@ proc recvFromClient*(client: Client): Future[IrcLineIn] {.async.} =
   except:
     echo("client socket died unexpected at recvLine")
 
-
 proc sendToRoom*(room: Room, msg: string) =
   ## sends a message to a room, if excludeUser is a valid user do not send msg 
   ## to this user
-  # if rooms.contains(roomname):
   for username in room.clients:
     if clients.contains(username):
       var client = clients[username]
       asyncCheck client.sendToClient(msg)
     else:
       echo "there is a user in a room which is not in clients list.... Bug?"
-  # else:
-  #   echo("sendToRoom: no such room: " & roomname)  
-
-
-# proc sendToRoom*(rooms: TableRef[string, Room], roomname: string, msg: string) =
-  # sends a message to all users in a room
-
-
-
 
 proc sendMotd*(client: Client, modt: string) =
   # sends a modt to the client
@@ -112,7 +101,6 @@ proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = tr
         for username in rooms[room].clients:
           var joinedClient = clients[username]
           answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick,"@",room],joinedClient.nick)) )
-          # discard client.socket.send(answer)
       else:
         var userLine: string = ""
         for username in rooms[room].clients:
@@ -124,7 +112,5 @@ proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = tr
     discard client.sendToClient(answer)
 
 proc sendTNames*(client: Client, roomname: string, lineByLine: bool = false) =
-  ## join can be like:
-  ## join #room1,&room2
   client.sendTNames(roomname.split(","), lineByLine)
 

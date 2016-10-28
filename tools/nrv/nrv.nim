@@ -15,8 +15,9 @@ import random
 import net
 import strutils
 import sequtils
+import os
 import "../../ircParsing"
-import "../../ch4tdef"
+import "../../ircDef"
 
 const
   BOTNAME = "nrv"
@@ -75,7 +76,7 @@ proc suchWasRaus(s: string): string =
     return ""
 
 var nsaLines: seq[string] = @[]
-var sock = newSocket().connectToIrc("127.0.0.1",6667)
+var sock = newSocket().connectToIrc("10.0.0.1",6667)
 var line: string = ""
 var ircLine: IrcLineIn
 
@@ -99,8 +100,9 @@ while true:
       if ircLine.trailer == "":
         continue
 
-      elif ircLine.trailer == "t":
-        discard sock.trySend( "privmsg $1 :$2\n" % ["#lobby","t"])
+      # elif ircLine.trailer == "t":
+      #   sleep(1000)
+      #   discard sock.trySend( "privmsg $1 :$2\n" % ["#lobby","t"])
 
       elif ircLine.trailer == "tt":
         discard sock.trySend( "privmsg $1 :$2\n" % ["hahahah"])        

@@ -49,8 +49,21 @@ type
     TKickHard = "KICKHARD", ## not IRC removes client from server
     TQuit = "QUIT", 
     TDebug = "DEBUG", ## like dump but only printing to stdout, not IRC
-    TWhois = "WHOIS" ## get info about a user
+    TWhois = "WHOIS", ## get info about a user
+    
+    # List answers
+    TList = "LIST" ## lists all or some channels/rooms
+    T321 = "321" ## start LIST list
+    T322 = "322" ## line of LIST cmd
+    T323 = "323" ## end of LIST 
 
+    # Lusers answers
+    TLusers = "LUSERS",
+    T251 = "251", ## start of LUSERS
+    T252 = "252", ##
+    T253 = "253", ##
+    T254 = "254", ##
+    T255 = "255", ##
 
   # who is set on [server -> client] and [server -> server ] communication only!
   IrcLineIn * = object of RootObj
@@ -81,14 +94,25 @@ type
   Rooms * = TableRef[string, Room]
 
 var 
-    clients * = newTable[string, Client]() # string = client name
-    rooms * = newTable[string, Room]()
+    clients * {.threadvar.}: TableRef[string, Client]
+    rooms * {.threadvar.}: TableRef[string,Room]
+
+clients = newTable[string, Client]() # string = client name
+rooms = newTable[string, Room]()
 
 proc newClient*(socket: AsyncSocket, user = "", nick = "", away = ""): Client =
    Client(socket: socket, user: user, nick: nick, away: away)
 
 proc newIrcLineIn*(command: TIrcCommands, params: seq[string], trailer: string, raw: string, who: string): IrcLineIn =
     IrcLineIn(command: command, params: params,trailer: trailer, raw: raw, who: who)
+
+proc newIrcLineIn*(): IrcLineIn = 
+    result = IrcLineIn()
+    result.command= TError
+    result.params= @[]
+    result.trailer= ""
+    result.raw= ""
+    result.who= ""
 
 proc newIrcLineOut*(prefix: string, command: TIrcCommands, params: seq[string], trailer: string): IrcLineOut =
     IrcLineOut(prefix: prefix, command: command, params: params, trailer: trailer)

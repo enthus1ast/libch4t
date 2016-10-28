@@ -12,16 +12,16 @@ import tables
 import ircDef
 import sets
 import ircParsing
+import strutils
 
 proc isUsernameUsed*(clients: Clients, user: string): bool =
   ## Checks if username is already in use
   ## TODO when a username has no 'nick' then it is not 'in use' ??
-  if clients.contains(user):
-    return true
-      # if clients[user].nick.validUserName():
-        # return true
-  else:
-      return false
+  for client in clients.values:
+    if client.user == user and client.nick != "": ## when a user has not set a username then it is "not in use" # todo? When is a user logged in?
+      echo "user [" & user & "] is already in use by ", client
+      return true
+  return false  
 
 proc isNicknameUsed*(clients: Clients, nick: string): bool = 
   ## Checks if nickname is already in use
@@ -30,7 +30,7 @@ proc isNicknameUsed*(clients: Clients, nick: string): bool =
     if client.nick == nick and client.user != "": ## when a user has not set a username then it is "not in use" # todo? When is a user logged in?
       echo "nickname [" & nick & "] is already in use by ", client
       return true
-  return false  
+  return false
 
 proc getClientByNick*(clients: TableRef[string, Client], nick: string ): Client =
   # einaml returnd die scheisse Client
@@ -68,3 +68,16 @@ proc getParticipatingUsersByNick*(rooms: TableRef[string, Room], nick: string): 
 
 proc isAway*(client: Client): bool =
   return client.away.len > 0      
+
+proc isParamList*(ircLineIn: IrcLineIn, param: int = 0): bool =
+  if ircLineIn.params.len > param:
+    if ircLineIn.params[param].contains(","):
+      return true
+  return false
+
+proc getParamList*(ircLineIn: IrcLineIn,param: int = 0): seq[string] =
+  ## returns the list parts of param n
+  result = @[]
+  if ircLineIn.isParamList(param):
+    result = ircLineIn.params[param].split(",")
+

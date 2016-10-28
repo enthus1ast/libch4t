@@ -13,23 +13,24 @@ import strutils
 
 
 const IRC_SERVER = "127.0.0.1"
+# const IRC_SERVER = "192.168.2.155"
 const IRC_PORT = 6667
 
 
-template login(user,nick: string, pong:bool = true) = 
+template login(socket: Socket, user,nick: string, pong:bool = true) = 
   echo "login with: ", user, " ", nick, " ", pong
   socket.send("USER " & user & "\n")  
   socket.send("NICK " & nick & "\n")
   
   if pong:
-    var line: string = ""
-    socket.readLine(line)
-    if "PING" in line:
-      socket.send("PONG :t\n")  
+    # var line: string = ""
+    # socket.readLine(line)
+    # if "PING" in line:
+    socket.send("PONG :t\n")  
 
 template aFewHalfLogins() = 
   echo "aFewHalfLogins"
-  for each in 1..1000:
+  for each in 1..10:
     var socket = newSocket()
     socket.connect(IRC_SERVER, Port(IRC_PORT))
     socket.send("USER " & "ufoo" & $each & "\n")  
@@ -64,12 +65,23 @@ template aFewJoins(count: int = 1_000) =
     write(stdout,"\c" & $each)
     socket.send(line)    
 
+template aFewUsers(count: int = 10_000) =
+  var sockets: seq[Socket] = @[]
+  for each in 0..count:
+    var socket = newSocket()
+    socket.connect(IRC_SERVER, Port(IRC_PORT))
+    socket.login("stress" & $each, "stress" & $each)
+    sockets.add(socket)
+  confirm("LET " & $count & " JOIN #lobby !! (this is blowing up libch4t atm...)")
+  for each in sockets:
+    each.send("JOIN #lobby\n")
+
 aFewHalfLogins()
 confirm()
 
 var socket = newSocket()
 socket.connect(IRC_SERVER, Port(IRC_PORT))
-login("foo", "baa",true)
+socket.login("foo", "baa",true)
 confirm()
 spam("privmsg baa :stress\n")
 confirm()
@@ -86,6 +98,8 @@ confirm("aFewJoins")
 aFewJoins()
 confirm("pings")
 spam("ping\n")
+confirm("a few users")
+aFewUsers()
 
 echo "done, hopefully libch4t is still running ;) press key"
 discard readLine(stdin)

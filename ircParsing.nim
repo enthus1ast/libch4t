@@ -28,18 +28,16 @@ proc validMode * (modestr: string): bool =
   else:
     return false
 
-
 proc validRoomName * (s: string): bool =
   result = (s != "" and (s.startsWith("#") or s.startsWith("&")) and s.len < MAX_ROOMNAME_LEN and not s.contains(" ") and not s.contains(",") and not s.contains('\x07'))
   echo("ROOMNAME [$1] valid [$2]" % [s,$result])
-
 
 proc validUserName * (s: string): bool =
   result = true
   # TODO check for ASCII
   # TODO white listening instead of blacklisting!!
   if s.strip().len == 0 or s.len > MAX_USERNAME_LEN:
-    echo("username to long: ", s)
+    echo("username to long/short: ", s)
     result = false
   if s.strip().startswith("#") or s.strip().startswith("&"):
     echo("usernames cannot start with '#' or '&'")
@@ -52,7 +50,6 @@ proc validUserName * (s: string): bool =
     result = false
   echo("USERNAME [$1] valid [$2]" % [s, $result])
 
-
 proc parseIncoming * (rawline: string): IrcLineIn =
   # this parses the client to server line,
   # example:
@@ -61,7 +58,7 @@ proc parseIncoming * (rawline: string): IrcLineIn =
   var line: string = rawline
   var headerPart: string
   var lineParts : seq[string]
-  result = IrcLineIn() # initialize the result
+  result = newIrcLineIn() # initialize the result
   line = line.strip() # TODO should we do this?
   if line == "":
     result.command=TError
@@ -91,8 +88,16 @@ proc parseIncoming * (rawline: string): IrcLineIn =
     # this is [client -> server]
     result.who = ""
   if line.contains(" :"): # Read trailer
-    result.trailer = line.split(" :", 1)[1]
-    headerPart = line.split(" :", 1)[0]
+    try:
+      result.trailer = line.split(" :", 1)[1]
+    except:
+      result.trailer = ""
+
+    try:
+      headerPart = line.split(" :", 1)[0]
+    except:
+      headerPart = ""
+
   else:
     result.trailer = ""
     headerPart = line
@@ -114,11 +119,8 @@ proc forgeAnswer * (ircLine: IrcLineOut): string =
     result.add(ircLine.trailer)
   result.add("\n")
 
-
 proc `$` * ( ircLine: IrcLineOut): string = 
   return forgeAnswer(ircLine)
-
-
 
 proc parsingSelftest * () =
   ## Test the parsing functions
@@ -191,8 +193,6 @@ proc parsingSelftest * () =
   assert parseIncoming("PING  :ping ugga fugga") == 
     newIrcLineIn(TPing, @[],"ping ugga fugga","PING  :ping ugga fugga","")
   
-  # echo parseIncoming(":enthus1ast PRIVMSG #lobby :Hallo lobby!")
-  
   #### Server answers:
   # msg from a nick
   assert parseIncoming(":enthus1ast PRIVMSG #lobby :Hallo lobby!") == 
@@ -241,17 +241,11 @@ proc parsingSelftest * () =
   assert parseIncoming("NAMES #kl,#lobby") == 
     newIrcLineIn(TNames, @["#kl,#lobby"],"","NAMES #kl,#lobby","")
 
-  # assert parseIncoming("NAMES #kl, #lobby") == newIrcLineIn(TError, @[],"") # parameter mit komma und lerzeilen sind verfickt,g("NAMES #kl, #lobby"?
-  # parameter mit komma und lerzeilen sind verfickt?
   assert parseIncoming("NAMES #kl, #lobby") == 
     newIrcLineIn(TNames, @["#kl,","#lobby"],"","NAMES #kl, #lobby","")
 
   assert parseIncoming("ping 20:23:48") == 
     newIrcLineIn(TPing, @["20:23:48"],"","ping 20:23:48","")
-    
-  # in quakenet ist das ein echo
-  # assert parseIncoming("NAMES #kl #lobby") == (TNames, @["#kl","#lobby"],"") # is das so super? 
-
 
 when isMainModule:
   parsingSelftest()

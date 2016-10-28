@@ -25,14 +25,12 @@ proc isOperator(client: Client): bool =
   ## TODO
   return true
 
-
 proc authenticated(client: Client): bool = 
   # if the client is authenticated
   if client.user.validUserName() and client.nick.validUserName():
     return true
   else:
     return false
-
 
 proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.} =
   var 
@@ -93,7 +91,9 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       # client.hanTCap(ircLineIn)
       client.hanTWho(ircLineIn)
       client.hanTMotd(ircLineIn)
-
+      client.hanTLusers(ircLineIn)
+      client.hanTList(ircLineIn)
+      
       ## Handles for operator only
       if client.isOperator():
         client.hanTDump(ircLineIn)
@@ -106,23 +106,18 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
 
     clients[client.user] = client # Updates the clients list
 
-
   # Remove client from every room its connected
   var roomsToDelete: seq[string] = @[]
   for room in rooms.values:
     if room.clients.contains(client.user):
       rooms[room.name].clients.excl(client.user)
-      ## TODO Maybe bug?? One of each is good here..
-      sendToRoom(room, forgeAnswer( newIrcLineOut(SERVER_NAME, TPart, @[room.name, client.nick], "Client disconnected (TPart) 116")) )
-      sendToRoom(room, forgeAnswer( newIrcLineOut(SERVER_NAME, TQuit, @[room.name, client.nick], "Client disconnected (TQuit) 117")) )
+      sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick, TPart, @[room.name, client.nick], "Client disconnected (TPart) 116")) )
       if rooms[room.name].clients.len == 0:
         echo "room is empty remove it 117 ", room
         roomsToDelete.add(room.name)
 
   for roomname in roomsToDelete:
     rooms.del(roomname)
-
-
 
   # Remove client from list when they disconnect.
   for i,c in clients:
