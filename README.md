@@ -1,5 +1,5 @@
 # libch4t
-IRC server toys in nim
+IRC server in nim
 
 edit:
     
@@ -28,3 +28,5 @@ to get a simple irc server in nim
 - DUMP # sends some debug info to caller
 - DEBUG # echo debug info
 - MOTD
+- LUSERS
+- LIST  # room topics are not yet implemented due the lack of modes
