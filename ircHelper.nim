@@ -81,3 +81,19 @@ proc getParamList*(ircLineIn: IrcLineIn,param: int = 0): seq[string] =
   if ircLineIn.isParamList(param):
     result = ircLineIn.params[param].split(",")
 
+# Modes helper
+proc hasRoomMode*(room: string, mode: TRoomModes): bool =
+  ## return true if the room has the given mode
+  if not rooms.contains(room):
+    return false
+
+  if rooms[room].modes.contains(mode):
+    return true
+  else:
+    return false
+
+proc setRoomMode*(room: string, mode: TRoomModes) =
+  ## sets a mode to a room
+  if not rooms.contains(room):
+    return
+  rooms[room].modes.incl(mode)

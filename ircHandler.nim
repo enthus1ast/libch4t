@@ -32,17 +32,14 @@ proc hanTAway*(client: var Client, line: IrcLineIn) =
     client.away = awayMessage
     echo("- Client $1 is away: $2" % [client.user, client.away])
 
-
 proc hanTNames*(client: Client, line: IrcLineIn ) =
   if line.command == TNames: # or line.command == TWho:
     if line.params.len > 0:
       client.sendTNames(line.params[0])
 
-
 proc hanTMotd*(client: Client, line: IrcLineIn) =
   if line.command == TMotd:
     client.sendMotd(MOTD)
-
 
 proc hanTUser*(client: var Client, line: IrcLineIn) =
   if line.command == TUser:
@@ -55,7 +52,6 @@ proc hanTUser*(client: var Client, line: IrcLineIn) =
         # echo("GOT VALID USER FROM: " & $client)
       else:
         echo("GOT INVALID USER / user already in use FROM: " & $client)
-
 
 proc hanTNick*(client: var Client, line: IrcLineIn) =
   ## TODO should change username in clients and rooms
@@ -88,7 +84,6 @@ proc hanTNick*(client: var Client, line: IrcLineIn) =
     else:
       echo("GOT INVALID NICK / nickname in use FROM: " & $client)      
 
-
 proc hanTPing*(client: Client, line: IrcLineIn) =
   # ping
   # ping 1234
@@ -108,7 +103,6 @@ proc hanTPing*(client: Client, line: IrcLineIn) =
       # discard client.sendToClient(forgeAnswer((SERVER_NAME, TPong, @[], answer)))
       discard #TODO debug
 
-
 proc hanTPong*(client: Client, line: IrcLineIn) =
   # if line.toUpper.startsWith(TPong):
   if line.command == TPong:
@@ -122,7 +116,6 @@ proc hanTPong*(client: Client, line: IrcLineIn) =
     else:
       pingChallenge = ""
     # echo("got PONG from: " & $client & " with challenge: " & pingChallenge )        
-
 
 proc hanTJoin*(client: Client, line: IrcLineIn) =
   var 
@@ -154,7 +147,9 @@ proc hanTJoin*(client: Client, line: IrcLineIn) =
       rooms[roomToJoin] = roomObj # we update the room table
     else:
       echo "creating room ", roomToJoin
-      rooms.add(roomToJoin, newRoom(roomToJoin))
+      var roomObj = newRoom(roomToJoin)
+      # roomObj.modes = toSet[TRoomModes][RoomInvisible, RoomInviteOnly, RoomNoOperator, RoomNoVoice] # DEBUG 
+      rooms.add(roomToJoin, roomObj)
       rooms[roomToJoin].clients.incl(client.user)
 
     # tell everyone we're just joined
@@ -164,7 +159,6 @@ proc hanTJoin*(client: Client, line: IrcLineIn) =
     # we initially send the names list to clients.
     # let them update their user list
     client.sendTNames(roomToJoin)
-
 
 proc hanTPart*(client: Client, line: IrcLineIn) =
   # disconnect from a channel
@@ -188,7 +182,8 @@ proc hanTPart*(client: Client, line: IrcLineIn) =
       try:  
         if rooms[room].clients.contains(client.user):
           sendToRoom(rooms[room], forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
-          rooms.mget(room).clients.excl(client.user)
+          # rooms.mget(room).clients.excl(client.user)
+          rooms[room].clients.excl(client.user)
 
         if rooms[room].clients.len == 0:
           echo "room is empty remove it 161 ", room
@@ -233,7 +228,6 @@ proc hanTPrivmsg*(client:Client, line: IrcLineIn) =
             echo "Client is available: ", client
         else:
           echo("Nick:", line.params[0], " not found")
-
 
 proc hanTWho*(client: Client, line: IrcLineIn) =
   if line.command == TWho:
@@ -295,7 +289,6 @@ proc hanTList*(client: Client, line: IrcLineIn) =
   output.add(forgeAnswer(newIrcLineOut(SERVER_NAME,T323,@[client.nick],"End of /LIST")))          
   discard client.sendToClient(output)
 
-
 proc genDebugStr(): string =
     result = ""
     result.add "-\n-\n-\n"
@@ -308,7 +301,8 @@ proc genDebugStr(): string =
     result.add "Rooms\n"
     result.add "#####\n"
     for room in rooms.values:
-      result.add ("Roomname: " & room.name & " " & $room.clients.len  & "\n")
+      result.add "Roomname: " & room.name & " " & $room.clients.len  & "\n"
+      result.add " `-Modes-> " & $room.modes & "\n"
       for cl in room.clients:
         # result.add "-- cl: " & cl & "[" & clients[cl].nick  & "]" & "\n"
         result.add "-- cl: "  & cl & "  " & $clients[cl] & "\n"
@@ -318,8 +312,6 @@ proc hanTDump*(client: Client, line: IrcLineIn) =
     for part in genDebugStr().split("\n"):
       discard client.sendToClient( forgeAnswer(newIrcLineOut(SERVER_NAME, TPrivmsg, @[client.nick], part )) )  
 
-
 proc hanTDebug*(client: Client, line: IrcLineIn) =
   if line.command == TDebug:
     echo genDebugStr()
-

@@ -13,33 +13,34 @@ import sequtils
 import asyncnet
 import tables
 import sets
+import config # we do not really need this here..?
 
 type
   TIrcCommands * = enum
-    TPong = "PONG",
-    TPing = "PING",
-    TJoin = "JOIN",
-    TUser = "USER",
-    T001 = "001",
+    TPong = "PONG", ##
+    TPing = "PING", ##
+    TJoin = "JOIN", ##
+    TUser = "USER", ##
+    T001 = "001", ##
     T352 = "352", ## answer to who
     T315 = "315", ## end who list
     T353 = "353", ## answer names
     T366 = "366", ## end names list
     T301 = "301", ## Away reply for sender
-    TNick = "NICK",
-    TWho = "WHO",
-    TNames = "NAMES",
-    TPrivmsg = "PRIVMSG",
-    TMode = "MODE",
+    TNick = "NICK", ##
+    TWho = "WHO", ##
+    TNames = "NAMES", ##
+    TPrivmsg = "PRIVMSG", ##
+    TMode = "MODE", ##
     T375 = "375", ## start server modt
     T372 = "372", ## a line of modt
     T376 = "376" ## end of modt :End of /MOTD command.
-    TError = "ERROR",
-    TMotd = "MOTD",
-    TPart = "PART",
-    TNotice = "NOTICE",
-    TUserhost = "USERHOST",
-    TAway = "AWAY",
+    TError = "ERROR", ##
+    TMotd = "MOTD", ##
+    TPart = "PART", ##
+    TNotice = "NOTICE", ##
+    TUserhost = "USERHOST", ##
+    TAway = "AWAY", ##
     TWall = "WALL", ## IRC? 
     # TWall = "ALL", # this is not irc ...
     TByeBye = "BYEBYE", ## not IRC
@@ -47,7 +48,7 @@ type
     TDump = "DUMP", ## returns structures, not IRC
     TKick = "KICK", ## removes client from room
     TKickHard = "KICKHARD", ## not IRC removes client from server
-    TQuit = "QUIT", 
+    TQuit = "QUIT", ##
     TDebug = "DEBUG", ## like dump but only printing to stdout, not IRC
     TWhois = "WHOIS", ## get info about a user
     
@@ -58,23 +59,46 @@ type
     T323 = "323" ## end of LIST 
 
     # Lusers answers
-    TLusers = "LUSERS",
+    TLusers = "LUSERS", ## 
     T251 = "251", ## start of LUSERS
     T252 = "252", ##
     T253 = "253", ##
     T254 = "254", ##
     T255 = "255", ##
 
+  TRoomModes * = enum
+    ## Modes of a room (NOT of a user in a room), some can be set by a room operator
+    ## Some have to be set by the server-config/server-operator
+    RoomInvisible = "i" ## removes this room from every LIST , WHO, NAMES etc command
+    RoomInviteOnly = "I" ## user cannot join this room unless they are invited
+    RoomNoOperator = "n" ## nobody can be room operator in this room, only server ops have cow powers
+    RoomNoVoice = "-v" ## nobody (except ops) can speak to this room
+
+  TUserModes * = enum
+    ## The server wide user modes
+    ServerUserVoice = "v" ## user has "voice" on the server, so user can write to channels
+    ServerUserOper = "o" ## user is a server operator
+    ServerUserInvisible = "i" ## the user is completely invisible on this server, no WHO, NAMES
+  
+  TClientRoomModes * = enum
+    ## The modes a client has in a room
+    ClientRoomOper = "o" ## client is a channel/room operator
+    ClientRoomVoice = "v" ## client has voice in a room, so client can write to a room
+    ClientRoomBanned = "b" ## client is banned from a room
+    ClientRoomInvisible = "i" ## client is invisible in a room, so client is not listed in a WHO, NAMES, etc command
+
   # who is set on [server -> client] and [server -> server ] communication only!
   IrcLineIn * = object of RootObj
-    command*: TIrcCommands
-    params*: seq[string]
-    trailer*: string
-    raw*: string
-    who*: string
+    ## We parse every line of text we receive from a client as an IrcLineIn object
+    command*: TIrcCommands ## a valid IRC command
+    params*: seq[string] ## params to the command
+    trailer*: string ## everything after the ":"
+    raw*: string ## the raw line the client has sent us
+    who*: string ## wo has sent us the line (client don't fill this normally, but servers do)
 
   IrcLineOut * = object of RootObj
-    prefix*: string
+    ## When we answer to a client we use an IrcLineOut object
+    prefix*: string 
     command*: TIrcCommands
     params*: seq[string]
     trailer*: string
@@ -84,24 +108,35 @@ type
     user*: string
     nick*: string
     away*: string # user is the server username, nick is the visible name
+    modes*: HashSet[TUserModes]  # these are the serverwide user mods; 
+                            # eg if the user is a server operator
+                            # or if the user is allowed to write to a room etc
+                            # a mod is like: 
+                            #   "o"  # user is server operator
+                            #   "i"  # user is invisible (ip gets shadowed) # we have no other mode atm
+                            #   "v"  # user has voice on this server
+                            #   ....
 
   Room *  = object of RootObj 
-    name*: string
-    clients*: HashSet[string]
-    mode*: seq[string] # clients is a sequence of usernames now!!
+    ## An IRC room/channel
+    name*: string ## name of a room like "#lobby" or "&oldstuff"
+    clients*: HashSet[string] ## the usernames of connected clients (we have to look them up from `clients` )
+    modes*: HashSet[TRoomModes] ## modes this rooms has (is it visible, are user allow to join withouth invite etc)
 
-  Clients * = TableRef[string, Client]
-  Rooms * = TableRef[string, Room]
+  Clients * = TableRef[string, Client] 
+  Rooms * = TableRef[string, Room] 
 
 var 
-    clients * {.threadvar.}: TableRef[string, Client]
-    rooms * {.threadvar.}: TableRef[string,Room]
+    clients * {.threadvar.}: TableRef[string, Client] ## our thread local table of connected clients, 
+                                                      ## every client ends in here
+    rooms * {.threadvar.}: TableRef[string,Room] ## our thread local table of created rooms
+    clientRoomMods * {.threadvar.}: TableRef[(string,string), HashSet[TClientRoomModes]] ## key: (username, roomname) , val: "o" or "v"
 
-clients = newTable[string, Client]() # string = client name
-rooms = newTable[string, Room]()
+clients = newTable[string, Client]() 
+rooms = newTable[string, Room]() 
 
-proc newClient*(socket: AsyncSocket, user = "", nick = "", away = ""): Client =
-   Client(socket: socket, user: user, nick: nick, away: away)
+proc newClient*(socket: AsyncSocket, user = "", nick = "", away = "", modes = initSet[TUserModes]()): Client =
+   Client(socket: socket, user: user, nick: nick, away: away, modes: modes)
 
 proc newIrcLineIn*(command: TIrcCommands, params: seq[string], trailer: string, raw: string, who: string): IrcLineIn =
     IrcLineIn(command: command, params: params,trailer: trailer, raw: raw, who: who)
@@ -117,8 +152,8 @@ proc newIrcLineIn*(): IrcLineIn =
 proc newIrcLineOut*(prefix: string, command: TIrcCommands, params: seq[string], trailer: string): IrcLineOut =
     IrcLineOut(prefix: prefix, command: command, params: params, trailer: trailer)
 
-proc newRoom(name: string, clients: HashSet[string], mode: seq[string]): Room =
-    Room(name: name, clients: clients, mode: mode)
+proc newRoom(name: string, clients: HashSet[string], modes: HashSet[TRoomModes]): Room =
+    Room(name: name, clients: clients, modes: modes)
 
 proc newRoom*(name: string): Room = 
-    newRoom(name, initSet[string](), @[])
+    newRoom(name, initSet[string](), initSet[TRoomModes]())

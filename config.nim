@@ -1,3 +1,5 @@
+import sets
+
 const
   SERVER_NAME * = "ch4t.code0.xyz"
   SERVER_URL *  = "http://" & SERVER_NAME
@@ -19,7 +21,7 @@ const
   WEBSOCKET_PORT * = 7787
 
   # every created rooms gets an default mode.
-  DEFAULT_ROOM_MODES *: seq[string] = @[]
+  # DEFAULT_ROOM_MODES * : HashSet[] = toSet(["i"])
 
   MOTD * = """ 
       
