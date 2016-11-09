@@ -8,6 +8,9 @@ for a web IRC client check out:
 - [ch6t](https://github.com/enthus1ast/ch6t)
 
 
+
+# Get your IRC server:
+
 edit:
     
     config.nim
