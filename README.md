@@ -1,6 +1,13 @@
 # libch4t
 IRC server in nim
 
+for a websocket to tcp proxy have a look at:
+- [nimWsToTcp](https://github.com/enthus1ast/nimWsToTcp)
+
+for a web IRC client check out:
+- [ch6t](https://github.com/enthus1ast/ch6t)
+
+
 edit:
     
     config.nim
