@@ -57,7 +57,6 @@ proc handleIrcAuth*(aClient: Client): Future[Client] {.async.} =
       else:
         echo "ping was answered false"
         pingGood = false
-        client.socket.close()
 
       # if (pingGood == true) and (not clients.isNicknameUsed(client.nick)) and (not clients.isUsernameUsed(client.user)):  ## we check right before we allow the client.....
       if pingGood == true:
@@ -71,5 +70,5 @@ proc handleIrcAuth*(aClient: Client): Future[Client] {.async.} =
         client.sendMotd(MOTD) # some clients wants a MOTD
         return client
       else:
-        client.socket.close() # TODO do we really have to close the socket here? BREAK FUCK BERAK
+        if not client.socket.isClosed(): client.socket.close() # TODO do we really have to close the socket here? BREAK FUCK BERAK
   return client # we have to return in any case.

@@ -72,6 +72,7 @@ proc hanTNick*(client: var Client, line: IrcLineIn) =
       echo "user ", client, " changed nickname to :" , nick
       var oldnickname = client.nick
       client.nick = nick
+      if not client.authenticated(): return # for use in ircAuth
       clients[client.user] = client
 
       # we inform our own client that we have sucessfully changed the nickname

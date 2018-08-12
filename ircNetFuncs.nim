@@ -16,6 +16,7 @@ import config
 import strutils
 import tables
 import sets
+import sequtils
 
 proc sendToClient*(client: Client, msg: string): Future[bool] {.async.} =
     if client.socket.isClosed():
@@ -100,12 +101,13 @@ proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = tr
         # for each user we send another line.
         for username in rooms[room].clients:
           var joinedClient = clients[username]
-          answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick,"@",room],joinedClient.nick)) )
+          answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick.strip(),"@",room],joinedClient.nick)) )
       else:
         var userLine: string = ""
         for username in rooms[room].clients:
           var joinedClient = clients[username]
-          userLine.add(joinedClient.nick & " ")
+          userLine.add(joinedClient.nick & " ") # BUG 
+        userLine = userline.strip(trailing = true) # better not " " to last itm it in the first place TODO
         answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick,"@",room],userLine)) )
         answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T366,@[client.nick,room],"End of /NAMES list")) )
   if answer != "": # if we have something to answer

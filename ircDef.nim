@@ -139,7 +139,7 @@ proc newClient*(socket: AsyncSocket, user = "", nick = "", away = "", modes = in
    Client(socket: socket, user: user, nick: nick, away: away, modes: modes)
 
 proc newIrcLineIn*(command: TIrcCommands, params: seq[string], trailer: string, raw: string, who: string): IrcLineIn =
-    IrcLineIn(command: command, params: params,trailer: trailer, raw: raw, who: who)
+    IrcLineIn(command: command, params: params, trailer: trailer, raw: raw, who: who)
 
 proc newIrcLineIn*(): IrcLineIn = 
     result = IrcLineIn()

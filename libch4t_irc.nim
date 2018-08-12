@@ -21,17 +21,6 @@ import ircAuth
 import ircHelper
 import sets
 
-proc isOperator(client: Client): bool = 
-  ## TODO
-  return true
-
-proc authenticated(client: Client): bool = 
-  # if the client is authenticated
-  if client.user.validUserName() and client.nick.validUserName():
-    return true
-  else:
-    return false
-
 proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.} =
   var 
     client: Client = newClient(socket) # we create an client even if not authenticated yet
@@ -39,7 +28,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     line: string = ""
 
   client = await handleIrcAuth(client) # this will fill in the user/nick
-  if client is void:
+  if  client is void or client.socket.isClosed():
     return 
   clients[client.user] = client 
 
@@ -54,9 +43,9 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       if line == "":
         echo("client leaves break out of main loop: ", client)
         
-        # tell every room the client was joined that he has left
-        for room in rooms.getRoomsByNick(client.nick):
-          sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected! 61")))
+        # # tell every room the client was joined that he has left
+        # for room in rooms.getRoomsByNick(client.nick):
+        #   sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick,TPart,@[room.name],"client disconnected! 61")))
         break
 
       ircLineIn = parseIncoming(line)

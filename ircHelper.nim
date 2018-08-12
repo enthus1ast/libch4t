@@ -14,6 +14,17 @@ import sets
 import ircParsing
 import strutils
 
+proc isOperator*(client: Client): bool = 
+  ## TODO
+  return true
+
+proc authenticated*(client: Client): bool = 
+  # if the client is authenticated
+  if client.user.validUserName() and client.nick.validUserName():
+    return true
+  else:
+    return false
+
 proc isUsernameUsed*(clients: Clients, user: string): bool =
   ## Checks if username is already in use
   ## TODO when a username has no 'nick' then it is not 'in use' ??
