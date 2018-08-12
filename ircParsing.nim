@@ -38,17 +38,19 @@ proc validUserName * (s: string): bool =
   # TODO white listening instead of blacklisting!!
   if s.strip().len == 0 or s.len > MAX_USERNAME_LEN:
     echo("username to long/short: ", s)
-    result = false
-  if s.strip().startswith("#") or s.strip().startswith("&"):
+    return false
+  elif s.strip().startswith("#") or s.strip().startswith("&"):
     echo("usernames cannot start with '#' or '&'")
-    result = false
-  if s[0] in "1234567890+-" and result:
+    return false
+  elif s[0] in "1234567890+-" and result:
     echo("username has invalid chars[1]: ", s)
-    result = false
-  if ";" in s or "," in s or ":" in s and result:
+    return false
+  elif ";" in s or "," in s or ":" in s:
     echo("username has invalid chars[2]: ", s)
-    result = false
-  echo("USERNAME [$1] valid [$2]" % [s, $result])
+    return false
+  else:
+    echo("USERNAME [$1] valid [$2]" % [s, $result])
+    return true
 
 proc parseIncoming * (rawline: string): IrcLineIn =
   # this parses the client to server line,
