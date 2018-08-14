@@ -86,7 +86,7 @@ proc isParamList*(ircLineIn: IrcLineIn, param: int = 0): bool =
       return true
   return false
 
-proc getParamList*(ircLineIn: IrcLineIn,param: int = 0): seq[string] =
+proc getParamList*(ircLineIn: IrcLineIn, param: int = 0): seq[string] =
   ## returns the list parts of param n
   result = @[]
   if ircLineIn.isParamList(param):

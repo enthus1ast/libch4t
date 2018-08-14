@@ -104,8 +104,10 @@ proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = tr
           answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick.strip(),"@",room],joinedClient.nick)) )
       else:
         var userLine: string = ""
+        userline.add(client.nick & " ") # some irc clients want its own username as the first one
         for username in rooms[room].clients:
-          var joinedClient = clients[username]
+          let joinedClient = clients[username] 
+          if joinedClient.nick == client.nick: continue # skip ourself, we have been added above
           userLine.add(joinedClient.nick & " ") # BUG 
         userLine = userline.strip(trailing = true) # better not " " to last itm it in the first place TODO
         answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick,"@",room],userLine)) )
