@@ -41,7 +41,15 @@ proc hanTMotd*(client: Client, line: IrcLineIn) =
   if line.command == TMotd:
     client.sendMotd(MOTD)
 
-proc hanTUser*(client: var Client, line: IrcLineIn) =
+proc hanTPass*(client: var Client, line: IrcLineIn) =
+  # Command: PASS
+  # Parameters: <password> <version> <flags> [<options>]
+  if line.command != TPass: return
+  if line.params.len <= 0: return
+  if client.connectionPassword != "": return # only one pass per connection is permitted
+  client.connectionPassword = line.params[0]
+
+proc hanTUser*(client: Client, line: IrcLineIn) =
   if line.command == TUser:
     if line.params.len > 0:
       # TODO here we should check if the user is already logged in and if its registered
@@ -51,7 +59,7 @@ proc hanTUser*(client: var Client, line: IrcLineIn) =
         client.user = user
         # echo("GOT VALID USER FROM: " & $client)
       else:
-        echo("GOT INVALID USER / user already in use FROM: " & $client)
+        echo("GOT INVALID USER / user already in use")  # FROM: " & $client)
 
 proc hanTNick*(client: var Client, line: IrcLineIn) =
   ## TODO should change username in clients and rooms
@@ -65,11 +73,11 @@ proc hanTNick*(client: var Client, line: IrcLineIn) =
     elif line.trailer != "":
       nick = line.trailer
     else:
-      echo("got no user from ", client)
+      echo("got no user from ",  repr client)
       return
 
     if (nick != "") and (nick.validUserName()) and (not clients.isNicknameUsed(nick)):
-      echo "user ", client, " changed nickname to :" , nick
+      echo "user ", repr client, " changed nickname to :" , nick
       var oldnickname = client.nick
       client.nick = nick
       if not client.authenticated(): return # for use in ircAuth
@@ -83,7 +91,7 @@ proc hanTNick*(client: var Client, line: IrcLineIn) =
         var foundClient = clients[usernameToAnswer]
         discard foundClient.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
     else:
-      echo("GOT INVALID NICK / nickname in use FROM: " & $client)      
+      echo("GOT INVALID NICK / nickname in use FROM: " & repr client)      
 
 proc hanTPing*(client: Client, line: IrcLineIn) =
   # ping
@@ -138,7 +146,7 @@ proc hanTJoin*(client: Client, line: IrcLineIn) =
 
   for roomToJoin in roomnamesToJoin:
     if not roomToJoin.validRoomName():
-      echo(client, " has tried to join invalid roomname: " , roomToJoin)
+      echo(repr client, " has tried to join invalid roomname: " , roomToJoin)
       continue
     echo "going to let join $1 to room $2" % [client.nick, roomToJoin]
     if rooms.contains(roomToJoin):
@@ -226,7 +234,7 @@ proc hanTPrivmsg*(client:Client, line: IrcLineIn) =
             let isAwayAnswer = forgeAnswer(newIrcLineOut(clientToAnswer.nick, TPrivmsg, @[clientToAnswer.nick], clientToAnswer.away))
             discard client.sendToClient(isAwayAnswer)
           else:
-            echo "Client is available: ", client
+            echo "Client is available: ", repr client
         else:
           echo("Nick:", line.params[0], " not found")
 
@@ -296,7 +304,7 @@ proc genDebugStr(): string =
     result.add "Connected Clients\n"
     result.add "#################\n"
     for i,each in clients:
-      result.add "[$1] $2\n" % [i, $each] 
+      result.add "[$1] $2\n" % [i, repr each] 
     
     result.add "\n"
     result.add "Rooms\n"
@@ -306,7 +314,7 @@ proc genDebugStr(): string =
       result.add " `-Modes-> " & $room.modes & "\n"
       for cl in room.clients:
         # result.add "-- cl: " & cl & "[" & clients[cl].nick  & "]" & "\n"
-        result.add "-- cl: "  & cl & "  " & $clients[cl] & "\n"
+        result.add "-- cl: "  & cl & "  " & (repr clients[cl]) & "\n"
 
 proc hanTDump*(client: Client, line: IrcLineIn) =
   if line.command == TDump:
@@ -316,3 +324,5 @@ proc hanTDump*(client: Client, line: IrcLineIn) =
 proc hanTDebug*(client: Client, line: IrcLineIn) =
   if line.command == TDebug:
     echo genDebugStr()
+
+

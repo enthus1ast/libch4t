@@ -51,6 +51,7 @@ type
     TQuit = "QUIT", ##
     TDebug = "DEBUG", ## like dump but only printing to stdout, not IRC
     TWhois = "WHOIS", ## get info about a user
+    TPass = "PASS", ## connection password
     
     # List answers
     TList = "LIST" ## lists all or some channels/rooms
@@ -103,11 +104,12 @@ type
     params*: seq[string]
     trailer*: string
 
-  Client * = object of RootObj 
+  Client * = ref object of RootObj 
     socket*: AsyncSocket
     user*: string
     nick*: string
     away*: string # user is the server username, nick is the visible name
+    connectionPassword*: string # the password the client has used for its connection
     modes*: HashSet[TUserModes]  # these are the serverwide user mods; 
                             # eg if the user is a server operator
                             # or if the user is allowed to write to a room etc

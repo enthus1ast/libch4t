@@ -1,14 +1,19 @@
 import sets
 
 const
-  SERVER_NAME * = "ch4t.code0.xyz"
-  SERVER_URL *  = "http://" & SERVER_NAME
-  LOGFILE *     = "ch4t.log"
-  MAX_USERNAME_LEN * = 200
-  MAX_ROOMNAME_LEN * = 200
+  SERVER_NAME* = "ch4t.code0.xyz"
+  SERVER_URL* = "http://" & SERVER_NAME
+  LOGFILE* = "ch4t.log"
+  MAX_USERNAME_LEN* = 200
+  MAX_ROOMNAME_LEN* = 200
+
+  SERVER_PASSWORD_ENABLED* = true
+  SERVER_PASSWORD* = "passw0rd"
   
   IRC_PORT * = 6667
   IRC_IFACE * = "0.0.0.0"
+
+  # SSL_ENABLED * = true
 
   PING_MSG * = "t"
 

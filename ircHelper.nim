@@ -30,7 +30,7 @@ proc isUsernameUsed*(clients: Clients, user: string): bool =
   ## TODO when a username has no 'nick' then it is not 'in use' ??
   for client in clients.values:
     if client.user == user and client.nick != "": ## when a user has not set a username then it is "not in use" # todo? When is a user logged in?
-      echo "user [" & user & "] is already in use by ", client
+      echo "user [" & user & "] is already in use" # , $client.user
       return true
   return false  
 
@@ -39,7 +39,7 @@ proc isNicknameUsed*(clients: Clients, nick: string): bool =
   echo "called isNicknameUsed with ", nick
   for client in clients.values:
     if client.nick == nick and client.user != "": ## when a user has not set a username then it is "not in use" # todo? When is a user logged in?
-      echo "nickname [" & nick & "] is already in use by ", client
+      echo "nickname [" & nick & "] is already in use"  # by ", client
       return true
   return false
 

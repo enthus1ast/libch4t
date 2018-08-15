@@ -27,9 +27,10 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     ircLineIn: IrcLineIn
     line: string = ""
 
-  client = await handleIrcAuth(client) # this will fill in the user/nick
-  if  client is void or client.socket.isClosed():
-    return 
+  if (await handleIrcAuth(client)) == false: # this will fill in the user/nick
+    if not client.socket.isClosed(): client.socket.close()
+    return
+
   clients[client.user] = client 
 
   while true:
@@ -41,7 +42,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
 
     try:
       if line == "":
-        echo("client leaves break out of main loop: ", client)
+        echo("client leaves break out of main loop: ", repr client)
         
         # # tell every room the client was joined that he has left
         # for room in rooms.getRoomsByNick(client.nick):
@@ -61,7 +62,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       continue
 
     if ircLineIn.command == TQuit:
-      echo "client will quit removeing socket for: " , client
+      echo "client will quit removeing socket for: " , repr client
       client.socket.close()
       break
 
@@ -111,7 +112,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
   # Remove client from list when they disconnect.
   for i,c in clients:
     if c == client:
-      echo "[info] removing ", client
+      echo "[info] removing ", repr client
       try:
         clients.del i
       except:

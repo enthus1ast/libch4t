@@ -17,7 +17,7 @@ import ircNetFuncs
 import ircHandler
 import ircHelper
 
-proc handleIrcAuth*(aClient: Client): Future[Client] {.async.} =
+proc handleIrcAuth*(aClient: Client): Future[bool] {.async.} =
   ## TODO # some code here belongs to the main loop
   ## This does the authentication handshake, atm
   ## Its enough to give valide `user` and `nick` 
@@ -25,6 +25,8 @@ proc handleIrcAuth*(aClient: Client): Future[Client] {.async.} =
   var client: Client = aClient
   var line: string = ""
   var pingGood: bool = false
+
+
   
   while true:
     try:
@@ -44,8 +46,13 @@ proc handleIrcAuth*(aClient: Client): Future[Client] {.async.} =
       echo("Could not parse line 33: " & line)
       continue
 
-    hanTUser(client,ircLineIn)
-    hanTNick(client,ircLineIn)
+    hanTPass(client, ircLineIn)
+    if SERVER_PASSWORD_ENABLED and client.connectionPassword != SERVER_PASSWORD: #TODO:
+      echo "server password wrong"
+      return false
+
+    hanTUser(client, ircLineIn)
+    hanTNick(client, ircLineIn)
 
     # if client.nick != "" and client.user != "" :
     # echo "The 'valide' username before checking: ", client
@@ -65,10 +72,11 @@ proc handleIrcAuth*(aClient: Client): Future[Client] {.async.} =
         discard await client.sendToClient(answer)
         discard await client.sendToClient(forgeAnswer(newIrcLineOut("NickServ", TNotice, @[client.nick],"Welcome to libch4ts irc transport")))
         discard await client.sendToClient(forgeAnswer(newIrcLineOut("NickServ", TNotice, @[client.nick],"visit "&SERVER_URL&"")))
-        echo("Client authenticated successfully: ", client)
+        echo("Client authenticated successfully: ", repr client)
         discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick, TMode, @[client.nick],"+i")))
         client.sendMotd(MOTD) # some clients wants a MOTD
-        return client
+        return true
       else:
-        if not client.socket.isClosed(): client.socket.close() # TODO do we really have to close the socket here? BREAK FUCK BERAK
-  return client # we have to return in any case.
+        return false
+        
+  # return true # we have to return in any case.
