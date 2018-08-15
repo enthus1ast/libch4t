@@ -13,7 +13,8 @@ const
   IRC_PORT * = 6667
   IRC_IFACE * = "0.0.0.0"
 
-  # SSL_ENABLED * = true
+  SSL_ENABLED * = true
+  SSL_CERT_FILE* = "keys/mycert.pem"
 
   PING_MSG * = "t"
 

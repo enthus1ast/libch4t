@@ -10,7 +10,7 @@
 ## This is the IRC Transport of libch4t.
 ## ATM its just a irc server 
 
-import asyncnet, asyncdispatch, strutils, sequtils, tables
+import asyncnet, asyncdispatch, strutils, sequtils, tables, net, os
 import ircDef
 import config
 import ircParsing
@@ -28,7 +28,12 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     line: string = ""
 
   if (await handleIrcAuth(client)) == false: # this will fill in the user/nick
-    if not client.socket.isClosed(): client.socket.close()
+    if not client.socket.isClosed(): 
+      # client.socket.
+      try :
+        client.socket.close()
+      except SslError:
+        echo "SSL error catched??"
     return
 
   clients[client.user] = client 
@@ -42,7 +47,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
 
     try:
       if line == "":
-        echo("client leaves break out of main loop: ", repr client)
+        echo("client leaves break out of main loop: ", client.nick)
         
         # # tell every room the client was joined that he has left
         # for room in rooms.getRoomsByNick(client.nick):
@@ -62,7 +67,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       continue
 
     if ircLineIn.command == TQuit:
-      echo "client will quit removeing socket for: " , repr client
+      echo "client will quit removeing socket for: " , client.nick
       client.socket.close()
       break
 
@@ -112,21 +117,32 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
   # Remove client from list when they disconnect.
   for i,c in clients:
     if c == client:
-      echo "[info] removing ", repr client
+      echo "[info] removing ", client.nick
       try:
         clients.del i
       except:
         debug("could not remove client from clients" )
       break
 
+proc wrapServerSocket(sock: AsyncSocket, protoVersion = protTLSv1) =
+  let path = SSL_CERT_FILE.absolutePath(getAppDir())
+  var ctx = newContext(protoVersion, CVerifyNone ,certFile = path, keyFile = path)
+  # ctx.wrapSocket(sock)
+  ctx.wrapConnectedSocket(sock, handshakeAsServer)
+
+
 proc serveClient {.async.} =
   var server = newAsyncSocket()
   server.setSockOpt(OptReuseAddr, true)
   let port = Port(IRC_PORT)
   let iface  = IRC_IFACE
+  # if SSL_ENABLED:
+  # wrapServerSocket(server)
   server.bindAddr(port,address=iface)
   server.listen()
+  server.wrapServerSocket()
 
+  
   echo "##################################################"
   echo "### libch4t irc transport started up on ", IRC_PORT
   echo "##################################################\n"
@@ -134,6 +150,7 @@ proc serveClient {.async.} =
   while true:
     try:
       let socketClient = await server.acceptAddr()
+      wrapServerSocket(socketClient.client)
       echo("Connection on client port from: ", socketClient.address)
       asyncCheck processClient(socketClient.address,socketClient.client)
     except:

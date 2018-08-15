@@ -118,15 +118,16 @@ type
                             #   "i"  # user is invisible (ip gets shadowed) # we have no other mode atm
                             #   "v"  # user has voice on this server
                             #   ....
-
-  Room *  = object of RootObj 
-    ## An IRC room/channel
+  Room *  = object of RootObj ## An IRC room/channel
     name*: string ## name of a room like "#lobby" or "&oldstuff"
     clients*: HashSet[string] ## the usernames of connected clients (we have to look them up from `clients` )
     modes*: HashSet[TRoomModes] ## modes this rooms has (is it visible, are user allow to join withouth invite etc)
 
   Clients * = TableRef[string, Client] 
   Rooms * = TableRef[string, Room] 
+
+
+  # IrcServer* = object
 
 var 
     clients * {.threadvar.}: TableRef[string, Client] ## our thread local table of connected clients, 
@@ -136,6 +137,8 @@ var
 
 clients = newTable[string, Client]() 
 rooms = newTable[string, Room]() 
+
+
 
 proc newClient*(socket: AsyncSocket, user = "", nick = "", away = "", modes = initSet[TUserModes]()): Client =
    Client(socket: socket, user: user, nick: nick, away: away, modes: modes)
