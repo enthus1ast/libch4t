@@ -159,6 +159,7 @@ proc serveClient(ircServer: IrcServer) {.async.} =
 when not defined release:
   parsingSelftest()
 
-var ircServer = newIrcServer()
-asyncCheck ircServer.serveClient()
-runForever()
+when isMainModule:
+  var ircServer = newIrcServer()
+  asyncCheck ircServer.serveClient()
+  runForever()
