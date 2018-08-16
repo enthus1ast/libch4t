@@ -37,17 +37,17 @@ proc recvFromClient*(client: Client): Future[IrcLineIn] {.async.} =
   except:
     echo("client socket died unexpected at recvLine")
 
-proc sendToRoom*(room: Room, msg: string) =
+proc sendToRoom*(ircServer: IrcServer, room: Room, msg: string) =
   ## sends a message to a room, if excludeUser is a valid user do not send msg 
   ## to this user
   for username in room.clients:
-    if clients.contains(username):
-      var client = clients[username]
+    if ircServer.clients.contains(username):
+      var client = ircServer.clients[username]
       asyncCheck client.sendToClient(msg)
     else:
       echo "there is a user in a room which is not in clients list.... Bug?"
 
-proc sendMotd*(client: Client, modt: string) =
+proc sendMotd*(ircServer: IrcServer, client: Client, modt: string) =
   # sends a modt to the client
   var outp: string = ""
   outp.add(forgeAnswer(newIrcLineOut(SERVER_NAME,T375,@[client.nick],"Message of the day")))
@@ -57,7 +57,7 @@ proc sendMotd*(client: Client, modt: string) =
   asyncCheck client.sendToClient(outp)
 
 
-proc pingClient*(client: Client): Future[bool] {.async.}  =
+proc pingClient*(ircServer: IrcServer, client: Client): Future[bool] {.async.}  =
   var line: IrcLineIn
 
   try:
@@ -92,7 +92,7 @@ proc pingClient*(client: Client): Future[bool] {.async.}  =
     return false    
     
 
-proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = true) =
+proc sendTNames*(ircServer: IrcServer, client: Client, roomsToJoin: seq[string], lineByLine: bool = true) =
   ### LINE by LINE
   var answer: string = ""
   for room in roomsToJoin:
@@ -100,13 +100,13 @@ proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = tr
       if lineByLine:
         # for each user we send another line.
         for username in rooms[room].clients:
-          var joinedClient = clients[username]
+          var joinedClient = ircServer.clients[username]
           answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick.strip(),"@",room],joinedClient.nick)) )
       else:
         var userLine: string = ""
         userline.add(client.nick & " ") # some irc clients want its own username as the first one
         for username in rooms[room].clients:
-          let joinedClient = clients[username] 
+          let joinedClient = ircServer.clients[username] 
           if joinedClient.nick == client.nick: continue # skip ourself, we have been added above
           userLine.add(joinedClient.nick & " ") # BUG 
         userLine = userline.strip(trailing = true) # better not " " to last itm it in the first place TODO
@@ -115,6 +115,6 @@ proc sendTNames*(client: Client, roomsToJoin: seq[string], lineByLine: bool = tr
   if answer != "": # if we have something to answer
     discard client.sendToClient(answer)
 
-proc sendTNames*(client: Client, roomname: string, lineByLine: bool = false) =
-  client.sendTNames(roomname.split(","), lineByLine)
+proc sendTNames*(ircServer: IrcServer, client: Client, roomname: string, lineByLine: bool = false) =
+  ircServer.sendTNames(client, roomname.split(","), lineByLine)
 

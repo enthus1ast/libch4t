@@ -17,7 +17,7 @@ import ircNetFuncs
 import ircHandler
 import ircHelper
 
-proc handleIrcAuth*(aClient: Client): Future[bool] {.async.} =
+proc handleIrcAuth*(ircServer: IrcServer, aClient: Client): Future[bool] {.async.} =
   ## TODO # some code here belongs to the main loop
   ## This does the authentication handshake, atm
   ## Its enough to give valide `user` and `nick` 
@@ -46,19 +46,19 @@ proc handleIrcAuth*(aClient: Client): Future[bool] {.async.} =
       echo("Could not parse line 33: " & line)
       continue
 
-    hanTPass(client, ircLineIn)
+    ircServer.hanTPass(client, ircLineIn)
     if SERVER_PASSWORD_ENABLED and client.connectionPassword != SERVER_PASSWORD: #TODO:
       echo "server password wrong"
       return false
 
-    hanTUser(client, ircLineIn)
-    hanTNick(client, ircLineIn)
+    ircServer.hanTUser(client, ircLineIn)
+    ircServer.hanTNick(client, ircLineIn)
 
     # if client.nick != "" and client.user != "" :
     # echo "The 'valide' username before checking: ", client
     if client.nick.validUserName() and client.user.validUserName():
       # only the first ping is mandatory atm.
-      if await client.pingClient():
+      if await ircServer.pingClient(client):
         echo "ping was answered good"
         pingGood = true
       else:
@@ -74,7 +74,7 @@ proc handleIrcAuth*(aClient: Client): Future[bool] {.async.} =
         discard await client.sendToClient(forgeAnswer(newIrcLineOut("NickServ", TNotice, @[client.nick],"visit "&SERVER_URL&"")))
         echo("Client authenticated successfully: ", repr client)
         discard client.sendToClient(forgeAnswer(newIrcLineOut(client.nick, TMode, @[client.nick],"+i")))
-        client.sendMotd(MOTD) # some clients wants a MOTD
+        ircServer.sendMotd(client, MOTD) # some clients wants a MOTD
         return true
       else:
         return false

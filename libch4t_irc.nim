@@ -21,13 +21,13 @@ import ircAuth
 import ircHelper
 import sets
 
-proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.} =
+proc processClient(ircServer: IrcServer, address: string, socket: AsyncSocket): Future[bool] {.async.} =
   var 
     client: Client = newClient(socket) # we create an client even if not authenticated yet
     ircLineIn: IrcLineIn
     line: string = ""
 
-  if (await handleIrcAuth(client)) == false: # this will fill in the user/nick
+  if (await ircServer.handleIrcAuth(client)) == false: # this will fill in the user/nick
     if not client.socket.isClosed(): 
       # client.socket.
       try :
@@ -36,7 +36,7 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
         echo "SSL error catched??"
     return
 
-  clients[client.user] = client 
+  ircServer.clients[client.user] = client 
 
   while true:
     try:
@@ -66,47 +66,47 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
       echo(getCurrentExceptionMsg())
       continue
 
-    if ircLineIn.command == TQuit:
+    if ircLineIn.command == TQuit: 
       echo "client will quit removeing socket for: " , client.nick
       client.socket.close()
       break
 
     ## Handles for every msg type.
     # client.hanTUser(ircLineIn) # TODO
-    client.hanTNick(ircLineIn) # TODO
+    ircServer.hanTNick(client, ircLineIn) # TODO
     if client.authenticated():
-      client.hanTPing(ircLineIn)
-      client.hanTPong(ircLineIn)
-      client.hanTJoin(ircLineIn)
-      client.hanTPart(ircLineIn)
-      client.hanTNames(ircLineIn)
-      client.hanTPrivmsg(ircLineIn)
-      # client.hanTUserhost(ircLineIn)
-      client.hanTAway(ircLineIn)
-      # client.hanTCap(ircLineIn)
-      client.hanTWho(ircLineIn)
-      client.hanTMotd(ircLineIn)
-      client.hanTLusers(ircLineIn)
-      client.hanTList(ircLineIn)
+      ircServer.hanTPing(client, ircLineIn)
+      ircServer.hanTPong(client, ircLineIn)
+      ircServer.hanTJoin(client, ircLineIn)
+      ircServer.hanTPart(client, ircLineIn)
+      ircServer.hanTNames(client, ircLineIn)
+      ircServer.hanTPrivmsg(client, ircLineIn)
+      # ircServer.hanTUserhost(client, ircLineIn)
+      ircServer.hanTAway(client, ircLineIn)
+      # ircServer.hanTCap(client, ircLineIn)
+      ircServer.hanTWho(client, ircLineIn)
+      ircServer.hanTMotd(client, ircLineIn)
+      ircServer.hanTLusers(client, ircLineIn)
+      ircServer.hanTList(client, ircLineIn)
       
       ## Handles for operator only
       if client.isOperator():
-        client.hanTDump(ircLineIn)
-        client.hanTDebug(ircLineIn)
+        ircServer.hanTDump(client, ircLineIn)
+        ircServer.hanTDebug(client, ircLineIn)
       #  client.hanTByeBye(ircLineIn)
       #  client.hanTKick(rooms,ircLineIn)
       #  client.hanTKickHard(ircLineIn)
       #  client.hanTWall(ircLineIn)
         discard
 
-    clients[client.user] = client # Updates the clients list
+    ircServer.clients[client.user] = client # Updates the clients list
 
   # Remove client from every room its connected
   var roomsToDelete: seq[string] = @[]
   for room in rooms.values:
     if room.clients.contains(client.user):
       rooms[room.name].clients.excl(client.user)
-      sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick, TPart, @[room.name, client.nick], "Client disconnected (TPart) 116")) )
+      ircServer.sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick, TPart, @[room.name, client.nick], "Client disconnected (TPart) 116")) )
       if rooms[room.name].clients.len == 0:
         echo "room is empty remove it 117 ", room
         roomsToDelete.add(room.name)
@@ -115,11 +115,11 @@ proc processClient(address: string, socket: AsyncSocket): Future[bool] {.async.}
     rooms.del(roomname)
 
   # Remove client from list when they disconnect.
-  for i,c in clients:
+  for i,c in ircServer.clients:
     if c == client:
       echo "[info] removing ", client.nick
       try:
-        clients.del i
+        ircServer.clients.del i
       except:
         debug("could not remove client from clients" )
       break
@@ -131,16 +131,15 @@ proc wrapServerSocket(sock: AsyncSocket, protoVersion = protTLSv1) =
   ctx.wrapConnectedSocket(sock, handshakeAsServer)
 
 
-proc serveClient {.async.} =
+proc serveClient(ircServer: IrcServer) {.async.} =
   var server = newAsyncSocket()
   server.setSockOpt(OptReuseAddr, true)
   let port = Port(IRC_PORT)
   let iface  = IRC_IFACE
-  # if SSL_ENABLED:
-  # wrapServerSocket(server)
   server.bindAddr(port,address=iface)
   server.listen()
-  server.wrapServerSocket()
+  if SSL_ENABLED:
+    server.wrapServerSocket()
 
   
   echo "##################################################"
@@ -150,14 +149,16 @@ proc serveClient {.async.} =
   while true:
     try:
       let socketClient = await server.acceptAddr()
-      wrapServerSocket(socketClient.client)
+      if SSL_ENABLED:
+        wrapServerSocket(socketClient.client)
       echo("Connection on client port from: ", socketClient.address)
-      asyncCheck processClient(socketClient.address,socketClient.client)
+      asyncCheck ircServer.processClient(socketClient.address,socketClient.client)
     except:
       echo("Accept addr is fuckd")
 
 when not defined release:
   parsingSelftest()
 
-asyncCheck serveClient()
+var ircServer = newIrcServer()
+asyncCheck ircServer.serveClient()
 runForever()

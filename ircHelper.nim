@@ -25,45 +25,45 @@ proc authenticated*(client: Client): bool =
   else:
     return false
 
-proc isUsernameUsed*(clients: Clients, user: string): bool =
+proc isUsernameUsed*(ircServer: IrcServer, user: string): bool =
   ## Checks if username is already in use
   ## TODO when a username has no 'nick' then it is not 'in use' ??
-  for client in clients.values:
+  for client in ircServer.clients.values:
     if client.user == user and client.nick != "": ## when a user has not set a username then it is "not in use" # todo? When is a user logged in?
       echo "user [" & user & "] is already in use" # , $client.user
       return true
   return false  
 
-proc isNicknameUsed*(clients: Clients, nick: string): bool = 
+proc isNicknameUsed*(ircServer: IrcServer, nick: string): bool = 
   ## Checks if nickname is already in use
   echo "called isNicknameUsed with ", nick
-  for client in clients.values:
+  for client in ircServer.clients.values:
     if client.nick == nick and client.user != "": ## when a user has not set a username then it is "not in use" # todo? When is a user logged in?
       echo "nickname [" & nick & "] is already in use"  # by ", client
       return true
   return false
 
-proc getClientByNick*(clients: TableRef[string, Client], nick: string ): Client =
+proc getClientByNick*(ircServer: IrcServer, nick: string ): Client =
   # einaml returnd die scheisse Client
-  for client in clients.values:
+  for client in ircServer.clients.values:
     if client.nick == nick:
       return client
   return newClient(nil,"","","") # TODO what should we return if no user was found?
 
-proc getRoomsByNick*(rooms: TableRef[string, Room], nick: string): seq[Room] =
-  var username = clients.getClientByNick(nick).user
+proc getRoomsByNick*(ircServer: IrcServer, nick: string): seq[Room] =
+  var username = ircServer.getClientByNick(nick).user
   result = @[]
   for room in rooms.values:
     if room.clients.contains(username):
       result.add(room)
 
-proc getParticipatingUsersByNick*(rooms: TableRef[string, Room], nick: string): HashSet[string] = 
+proc getParticipatingUsersByNick*(ircServer: IrcServer, rooms: TableRef[string, Room], nick: string): HashSet[string] = 
   ## returns a sequenze of clients wich has partizipated with the given nick
   ## eg. that are in the same room etc.
   ## we remove every duplicates from the result.
   ## We need this function for eg.: telling every client a user has renamed 
   result = initSet[string]()
-  var client = clients.getClientByNick(nick)
+  var client = ircServer.getClientByNick(nick)
   for room in rooms.values:
     echo room.clients
     if room.clients.contains(client.user):
@@ -74,7 +74,7 @@ proc getParticipatingUsersByNick*(rooms: TableRef[string, Room], nick: string): 
         result.incl(username)
   
   # now we exclude our self.
-  result.excl(clients.getClientByNick(nick).user)
+  result.excl(ircServer.getClientByNick(nick).user)
 
 
 proc isAway*(client: Client): bool =
