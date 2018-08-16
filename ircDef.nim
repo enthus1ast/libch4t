@@ -110,6 +110,7 @@ type
     nick*: string
     away*: string # user is the server username, nick is the visible name
     connectionPassword*: string # the password the client has used for its connection
+    hostname*: string # the ip/hostname the client connects from
     modes*: HashSet[TUserModes]  # these are the serverwide user mods; 
                             # eg if the user is a server operator
                             # or if the user is allowed to write to a room etc
@@ -139,12 +140,7 @@ proc newIrcServer*(): IrcServer =
   result.rooms = newTable[string, Room]() 
   # result.clientRoomMods = newTable[tuple[string, string], initSet[HashSet[TClientRoomModes]]] # ClientRoomMods
 
-# var 
     # clientRoomMods * {.threadvar.}: ## key: (username, roomname) , val: "o" or "v"
-
-
-
-
 
 proc newClient*(socket: AsyncSocket, user = "", nick = "", away = "", modes = initSet[TUserModes]()): Client =
    Client(socket: socket, user: user, nick: nick, away: away, modes: modes)

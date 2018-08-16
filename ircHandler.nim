@@ -45,9 +45,20 @@ proc hanTPass*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   # Command: PASS
   # Parameters: <password> <version> <flags> [<options>]
   if line.command != TPass: return
-  if line.params.len <= 0: return
+  if line.params.len == 0 and line.trailer.len == 0: return
   if client.connectionPassword != "": return # only one pass per connection is permitted
-  client.connectionPassword = line.params[0]
+
+  # When client stores password in trailer
+  if line.params.len == 0 and line.trailer != "":
+    client.connectionPassword = line.trailer
+
+  # When client stores password in param
+  elif line.params.len > 0:
+    client.connectionPassword = line.params[0]
+
+   
+
+
 
 proc hanTUser*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   if line.command != TUser: return
@@ -148,6 +159,9 @@ proc hanTJoin*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
     if ircServer.rooms.contains(roomToJoin):
       echo "there is a room named ", roomToJoin
       var roomObj = ircServer.rooms[roomToJoin]
+
+
+      if roomObj.clients.contains(client.user): continue # when client already joined the room we dont tell everyone about it again
       roomObj.clients.incl(client.user)
       ircServer.rooms[roomToJoin] = roomObj # we update the room table
     else:
@@ -159,7 +173,6 @@ proc hanTJoin*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
 
     # tell everyone we're just joined
     # by sending userlist to everybody        
-
     ircServer.sendToRoom(ircServer.rooms[roomToJoin], forgeAnswer(newIrcLineOut(client.combinedNickname(), TJoin, @[roomToJoin],"" )))
     
     # we initially send the names list to clients.
@@ -184,7 +197,7 @@ proc hanTPart*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
     for room in roomsToLeave:
       try:  
         if ircServer.rooms[room].clients.contains(client.user):
-          ircServer.sendToRoom(ircServer.rooms[room], forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
+          ircServer.sendToRoom(ircServer.rooms[room], forgeAnswer( newIrcLineOut(client.nick, TPart, @[room], line.trailer)))
           ircServer.rooms[room].clients.excl(client.user)
         if ircServer.rooms[room].clients.len == 0:
           echo "room is empty remove it 161 ", room
@@ -240,8 +253,9 @@ proc hanTWho*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
       if validRoomName(room):
         if ircServer.rooms.contains(room):
           for clientName in ircServer.rooms[room].clients:
-            var joinedClient = ircServer.clients[clientName]
-            var answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T352,@[client.nick,room,joinedClient.nick, "shadowedDNS", SERVER_NAME, joinedClient.nick, ""],"0 dummyuser"))
+            let joinedClient = ircServer.clients[clientName]
+            let clientHostname = if CLIENT_HOSTNAMES_SEND: client.hostname else: CLIENT_HOSTNAME_FAKE
+            var answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T352,@[client.nick, room, joinedClient.nick, clientHostname, SERVER_NAME, joinedClient.nick, ""],"0 " & client.user))
             answer = answer.removeDoubleWhite()
             discard client.sendToClient(answer)
           let answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T315,@[client.nick,room],"End of /WHO list"))

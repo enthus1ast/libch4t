@@ -10,23 +10,15 @@
 ## This is the IRC Transport of libch4t.
 ## ATM its just a irc server 
 
-import asyncnet, asyncdispatch, strutils, sequtils, tables, net, os
-import ircDef
-import config
-import ircParsing
-import logging
-import ircNetFuncs
-import ircHandler
-import ircAuth
-import ircHelper
-import sets
+import asyncnet, asyncdispatch, strutils, sequtils, tables, net, os, sets
+import config, ircDef, ircParsing, logging, ircNetFuncs, ircHandler, ircAuth, ircHelper
 
 proc processClient(ircServer: IrcServer, address: string, socket: AsyncSocket): Future[bool] {.async.} =
   var 
     client: Client = newClient(socket) # we create an client even if not authenticated yet
     ircLineIn: IrcLineIn
     line: string = ""
-
+  client.hostname = address
   if (await ircServer.handleIrcAuth(client)) == false: # this will fill in the user/nick
     if not client.socket.isClosed(): 
       # client.socket.
@@ -130,7 +122,6 @@ proc wrapServerSocket(sock: AsyncSocket, protoVersion = protTLSv1) =
   # ctx.wrapSocket(sock)
   ctx.wrapConnectedSocket(sock, handshakeAsServer)
 
-
 proc serveClient(ircServer: IrcServer) {.async.} =
   var server = newAsyncSocket()
   server.setSockOpt(OptReuseAddr, true)
@@ -140,7 +131,6 @@ proc serveClient(ircServer: IrcServer) {.async.} =
   server.listen()
   if SSL_ENABLED:
     server.wrapServerSocket()
-
   
   echo "##################################################"
   echo "### libch4t irc transport started up on ", IRC_PORT

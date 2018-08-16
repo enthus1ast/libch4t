@@ -10,13 +10,16 @@ const
   SERVER_PASSWORD_ENABLED* = true
   SERVER_PASSWORD* = "passw0rd"
   
-  IRC_PORT * = 6667
-  IRC_IFACE * = "0.0.0.0"
+  IRC_PORT* = 6667
+  IRC_IFACE* = "0.0.0.0"
 
-  SSL_ENABLED * = false
+  SSL_ENABLED* = false
   SSL_CERT_FILE* = "keys/mycert.pem"
 
-  PING_MSG * = "t"
+  CLIENT_HOSTNAMES_SEND* = false #sends the client ip/hostname to other clients
+  CLIENT_HOSTNAME_FAKE* = "shadowedDNS" # if `CLIENT_HOSTNAMES_SEND == false` this gets sent instead
+
+  PING_MSG* = "t"
 
   # every created rooms gets an default mode.
   # DEFAULT_ROOM_MODES * : HashSet[] = toSet(["i"])

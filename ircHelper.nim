@@ -115,5 +115,6 @@ proc setRoomMode*(ircServer: IrcServer, room: string, mode: TRoomModes) =
 proc combinedNickname*(client: Client): string =
   ## returns ´nick!~user@server´
    # TODO
-  return client.nick & "!~" & client.user & "@"  & SERVER_NAME #& ircServer.serverName
+  let clientHostname = if CLIENT_HOSTNAMES_SEND: client.hostname else: CLIENT_HOSTNAME_FAKE
+  return client.nick & "!~" & client.user & "@"  & clientHostname #& ircServer.serverName
   
