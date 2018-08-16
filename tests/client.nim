@@ -17,12 +17,12 @@ proc onIrcEvent(client: AsyncIrc, event: IrcEvent) {.async.} =
           await client.privmsg(event.origin, "TEST" & $i)
       if msg == "!users":
         await client.privmsg(event.origin, "Users: " &
-            client.getUserList(event.origin).join("A-A"))
+            client.getUserList(event.origin).join(" - "))
     echo(event.raw)
 
-var client = newAsyncIrc("hobana.freenode.net", nick="TestBot1234",
-# var client = newAsyncIrc("127.0.0.1", nick="TestBot1234", user="TestBotUSR",
-                 joinChans = @["#testaaaaaaa"], callback = onIrcEvent)
+# var client = newAsyncIrc("hobana.freenode.net", nick="TestBot1234",
+var client = newAsyncIrc("127.0.0.1", nick="TestBot1234", user="TestBotUSR",
+                 joinChans = @["#lobby"], callback = onIrcEvent, serverPass = "passw0rd")
 asyncCheck client.run()
 
 runForever()

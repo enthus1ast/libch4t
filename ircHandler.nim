@@ -159,7 +159,8 @@ proc hanTJoin*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
 
     # tell everyone we're just joined
     # by sending userlist to everybody        
-    ircServer.sendToRoom(ircServer.rooms[roomToJoin], forgeAnswer(newIrcLineOut(client.nick, TJoin, @[roomToJoin],"" )))
+
+    ircServer.sendToRoom(ircServer.rooms[roomToJoin], forgeAnswer(newIrcLineOut(client.combinedNickname(), TJoin, @[roomToJoin],"" )))
     
     # we initially send the names list to clients.
     # let them update their user list

@@ -13,6 +13,7 @@ import ircDef
 import sets
 import ircParsing
 import strutils
+import config 
 
 proc isOperator*(client: Client): bool = 
   ## TODO
@@ -108,3 +109,11 @@ proc setRoomMode*(ircServer: IrcServer, room: string, mode: TRoomModes) =
   if not ircServer.rooms.contains(room):
     return
   ircServer.rooms[room].modes.incl(mode)
+
+
+# proc combinedNickname*(ircServer: IrcServer, client: Client): string = #TODO
+proc combinedNickname*(client: Client): string =
+  ## returns ´nick!~user@server´
+   # TODO
+  return client.nick & "!~" & client.user & "@"  & SERVER_NAME #& ircServer.serverName
+  
