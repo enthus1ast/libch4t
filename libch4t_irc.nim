@@ -103,16 +103,16 @@ proc processClient(ircServer: IrcServer, address: string, socket: AsyncSocket): 
 
   # Remove client from every room its connected
   var roomsToDelete: seq[string] = @[]
-  for room in rooms.values:
+  for room in ircServer.rooms.values:
     if room.clients.contains(client.user):
-      rooms[room.name].clients.excl(client.user)
+      ircServer.rooms[room.name].clients.excl(client.user)
       ircServer.sendToRoom(room, forgeAnswer( newIrcLineOut(client.nick, TPart, @[room.name, client.nick], "Client disconnected (TPart) 116")) )
-      if rooms[room.name].clients.len == 0:
+      if ircServer.rooms[room.name].clients.len == 0:
         echo "room is empty remove it 117 ", room
         roomsToDelete.add(room.name)
 
   for roomname in roomsToDelete:
-    rooms.del(roomname)
+    ircServer.rooms.del(roomname)
 
   # Remove client from list when they disconnect.
   for i,c in ircServer.clients:

@@ -53,18 +53,18 @@ proc getClientByNick*(ircServer: IrcServer, nick: string ): Client =
 proc getRoomsByNick*(ircServer: IrcServer, nick: string): seq[Room] =
   var username = ircServer.getClientByNick(nick).user
   result = @[]
-  for room in rooms.values:
+  for room in ircServer.rooms.values:
     if room.clients.contains(username):
       result.add(room)
 
-proc getParticipatingUsersByNick*(ircServer: IrcServer, rooms: TableRef[string, Room], nick: string): HashSet[string] = 
+proc getParticipatingUsersByNick*(ircServer: IrcServer, nick: string): HashSet[string] = 
   ## returns a sequenze of clients wich has partizipated with the given nick
   ## eg. that are in the same room etc.
   ## we remove every duplicates from the result.
   ## We need this function for eg.: telling every client a user has renamed 
   result = initSet[string]()
   var client = ircServer.getClientByNick(nick)
-  for room in rooms.values:
+  for room in ircServer.rooms.values:
     echo room.clients
     if room.clients.contains(client.user):
       ## user has logged into this room, 
@@ -93,18 +93,18 @@ proc getParamList*(ircLineIn: IrcLineIn, param: int = 0): seq[string] =
     result = ircLineIn.params[param].split(",")
 
 # Modes helper
-proc hasRoomMode*(room: string, mode: TRoomModes): bool =
+proc hasRoomMode*(ircServer: IrcServer, room: string, mode: TRoomModes): bool =
   ## return true if the room has the given mode
-  if not rooms.contains(room):
+  if not ircServer.rooms.contains(room):
     return false
 
-  if rooms[room].modes.contains(mode):
+  if ircServer.rooms[room].modes.contains(mode):
     return true
   else:
     return false
 
-proc setRoomMode*(room: string, mode: TRoomModes) =
+proc setRoomMode*(ircServer: IrcServer, room: string, mode: TRoomModes) =
   ## sets a mode to a room
-  if not rooms.contains(room):
+  if not ircServer.rooms.contains(room):
     return
-  rooms[room].modes.incl(mode)
+  ircServer.rooms[room].modes.incl(mode)

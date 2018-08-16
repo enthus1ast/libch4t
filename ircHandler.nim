@@ -87,7 +87,7 @@ proc hanTNick*(ircServer: IrcServer, client: var Client, line: IrcLineIn) =
       discard client.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
 
       # now we inform every user that should know about our namechange that we have changed names.
-      for usernameToAnswer in ircServer.getParticipatingUsersByNick(rooms, client.nick):
+      for usernameToAnswer in ircServer.getParticipatingUsersByNick(client.nick):
         var foundClient = ircServer.clients[usernameToAnswer]
         discard foundClient.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
     else:
@@ -149,21 +149,21 @@ proc hanTJoin*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
       echo(repr client, " has tried to join invalid roomname: " , roomToJoin)
       continue
     echo "going to let join $1 to room $2" % [client.nick, roomToJoin]
-    if rooms.contains(roomToJoin):
+    if ircServer.rooms.contains(roomToJoin):
       echo "there is a room named ", roomToJoin
-      var roomObj = rooms[roomToJoin]
+      var roomObj = ircServer.rooms[roomToJoin]
       roomObj.clients.incl(client.user)
-      rooms[roomToJoin] = roomObj # we update the room table
+      ircServer.rooms[roomToJoin] = roomObj # we update the room table
     else:
       echo "creating room ", roomToJoin
       var roomObj = newRoom(roomToJoin)
       # roomObj.modes = toSet[TRoomModes][RoomInvisible, RoomInviteOnly, RoomNoOperator, RoomNoVoice] # DEBUG 
-      rooms.add(roomToJoin, roomObj)
-      rooms[roomToJoin].clients.incl(client.user)
+      ircServer.rooms.add(roomToJoin, roomObj)
+      ircServer.rooms[roomToJoin].clients.incl(client.user)
 
     # tell everyone we're just joined
     # by sending userlist to everybody        
-    ircServer.sendToRoom(rooms[roomToJoin], forgeAnswer(newIrcLineOut(client.nick, TJoin, @[roomToJoin],"" )))
+    ircServer.sendToRoom(ircServer.rooms[roomToJoin], forgeAnswer(newIrcLineOut(client.nick, TJoin, @[roomToJoin],"" )))
     
     # we initially send the names list to clients.
     # let them update their user list
@@ -183,20 +183,20 @@ proc hanTPart*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
         roomsToLeave.add(room.name)    
     else:
       for room in line.params[0].split(","):
-        if room.validRoomName() and rooms.contains(room):
+        if room.validRoomName() and ircServer.rooms.contains(room):
           roomsToLeave.add(room) 
         else:
           echo("No such room: ", room)
     for room in roomsToLeave:
       try:  
-        if rooms[room].clients.contains(client.user):
-          ircServer.sendToRoom(rooms[room], forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
+        if ircServer.rooms[room].clients.contains(client.user):
+          ircServer.sendToRoom(ircServer.rooms[room], forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
           # rooms.mget(room).clients.excl(client.user)
-          rooms[room].clients.excl(client.user)
+          ircServer.rooms[room].clients.excl(client.user)
 
-        if rooms[room].clients.len == 0:
+        if ircServer.rooms[room].clients.len == 0:
           echo "room is empty remove it 161 ", room
-          rooms.del(room)          
+          ircServer.rooms.del(room)          
       except:
         echo("User ", client.user , " is not in room ", room)     
 
@@ -214,10 +214,10 @@ proc hanTPrivmsg*(ircServer: IrcServer, client:Client, line: IrcLineIn) =
         let roomToSend = line.params[0]
         # we send to a room historically a room in irc could start with '#' or '&''
   
-        if rooms.contains(roomToSend):
-          if rooms[roomToSend].clients.contains(client.user): 
+        if ircServer.rooms.contains(roomToSend):
+          if ircServer.rooms[roomToSend].clients.contains(client.user): 
             # check if a user has joined the room (only then allowed to write)
-            for connectedClient in rooms[roomToSend].clients:
+            for connectedClient in ircServer.rooms[roomToSend].clients:
               let answer = forgeAnswer(newIrcLineOut(client.nick,TPrivmsg,@[roomToSend], newTrailer))
               if connectedClient != client.user: #exlude ourself
                 echo $TPrivmsg, " to " , connectedClient , " -> " , answer.strip()
@@ -246,8 +246,8 @@ proc hanTWho*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
     if line.params.len > 0:
       for room in line.params[0].split(","):
         if validRoomName(room):
-          if rooms.contains(room):
-            for clientName in rooms[room].clients:
+          if ircServer.rooms.contains(room):
+            for clientName in ircServer.rooms[room].clients:
               var joinedClient = ircServer.clients[clientName]
               var answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T352,@[client.nick,room,joinedClient.nick, "shadowedDNS", SERVER_NAME, joinedClient.nick, ""],"0 dummyuser"))
               answer = answer.removeDoubleWhite()
@@ -262,7 +262,7 @@ proc hanTLusers*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
     output.add forgeAnswer(newIrcLineOut(SERVER_NAME, T251, @[client.nick], "There are $1 users and $2 invisible on $3 servers" % ["0", $ircServer.clients.len, "1"]))
     output.add forgeAnswer(newIrcLineOut(SERVER_NAME, T252, @[client.nick, "0"], "operator(s) online"))
     output.add forgeAnswer(newIrcLineOut(SERVER_NAME, T253, @[client.nick,"0"], "unknown connection(s)"))
-    output.add forgeAnswer(newIrcLineOut(SERVER_NAME, T254, @[client.nick,$rooms.len()], "channels formed"))
+    output.add forgeAnswer(newIrcLineOut(SERVER_NAME, T254, @[client.nick,$ircServer.rooms.len()], "channels formed"))
     output.add forgeAnswer(newIrcLineOut(SERVER_NAME, T255, @[client.nick], "I have $1 clients and $2 servers" % [$ircServer.clients.len,"1"]))
     discard client.sendToClient(output)
 
@@ -286,14 +286,14 @@ proc hanTList*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
       roomNamesToList.add(param)
   elif line.params.len == 0:
     ## no params are given so we list every known room.
-    for room in rooms.values:
+    for room in ircServer.rooms.values:
         roomNamesToList.add(room.name)    
 
   ## Build the answer
   output.add(forgeAnswer(newIrcLineOut(SERVER_NAME,T321,@[client.nick,"Channel","Users"],"Name")))
   for roomName in roomNamesToList:
-    if roomName in rooms:
-      room = rooms[roomName]
+    if roomName in ircServer.rooms:
+      room = ircServer.rooms[roomName]
       output.add(forgeAnswer(newIrcLineOut(SERVER_NAME,T322,@[client.nick, room.name,$room.clients.len], "ROOM TOPIC IS NOT IMPLEMENTED")))
   output.add(forgeAnswer(newIrcLineOut(SERVER_NAME,T323,@[client.nick],"End of /LIST")))          
   discard client.sendToClient(output)
@@ -309,7 +309,7 @@ proc genDebugStr(ircServer: IrcServer): string =
     result.add "\n"
     result.add "Rooms\n"
     result.add "#####\n"
-    for room in rooms.values:
+    for room in ircServer.rooms.values:
       result.add "Roomname: " & room.name & " " & $room.clients.len  & "\n"
       result.add " `-Modes-> " & $room.modes & "\n"
       for cl in room.clients:

@@ -96,16 +96,16 @@ proc sendTNames*(ircServer: IrcServer, client: Client, roomsToJoin: seq[string],
   ### LINE by LINE
   var answer: string = ""
   for room in roomsToJoin:
-    if rooms.contains(room):
+    if ircServer.rooms.contains(room):
       if lineByLine:
         # for each user we send another line.
-        for username in rooms[room].clients:
+        for username in ircServer.rooms[room].clients:
           var joinedClient = ircServer.clients[username]
           answer.add( forgeAnswer(newIrcLineOut(SERVER_NAME,T353,@[client.nick.strip(),"@",room],joinedClient.nick)) )
       else:
         var userLine: string = ""
         userline.add(client.nick & " ") # some irc clients want its own username as the first one
-        for username in rooms[room].clients:
+        for username in ircServer.rooms[room].clients:
           let joinedClient = ircServer.clients[username] 
           if joinedClient.nick == client.nick: continue # skip ourself, we have been added above
           userLine.add(joinedClient.nick & " ") # BUG 
