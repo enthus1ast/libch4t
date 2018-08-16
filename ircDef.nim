@@ -125,23 +125,22 @@ type
 
   Clients * = TableRef[string, Client] 
   Rooms * = TableRef[string, Room] 
-
+  ClientRoomMods* = TableRef[(string,string), HashSet[TClientRoomModes]]
 
   IrcServer* = object
     clients*: TableRef[string, Client] # table of connected clients
     socket*: AsyncSocket 
     rooms*: Rooms
+    clientRoomMods*: ClientRoomMods 
     
 proc newIrcServer*(): IrcServer =
   result = IrcServer()
   result.clients = newTable[string, Client]() 
   result.rooms = newTable[string, Room]() 
+  # result.clientRoomMods = newTable[tuple[string, string], initSet[HashSet[TClientRoomModes]]] # ClientRoomMods
 
-var 
-    # clients * {.threadvar.}: TableRef[string, Client] # our thread local table of connected clients, 
-    #                                                       ## every client ends in here
-    # rooms * {.threadvar.}: TableRef[string,Room] ## our thread local table of created rooms
-    clientRoomMods * {.threadvar.}: TableRef[(string,string), HashSet[TClientRoomModes]] ## key: (username, roomname) , val: "o" or "v"
+# var 
+    # clientRoomMods * {.threadvar.}: ## key: (username, roomname) , val: "o" or "v"
 
 
 
