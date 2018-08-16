@@ -18,14 +18,6 @@ const
 
   PING_MSG * = "t"
 
-
-  # This binds the tcp socket to a websocket.
-  # So just speak IRC to the websocket to 
-  # Connect to libch4t.
-  # TODO import the upstream wsToTcp proxy somehow
-  WEBSOCKET * = false # compile websocket support
-  WEBSOCKET_PORT * = 7787
-
   # every created rooms gets an default mode.
   # DEFAULT_ROOM_MODES * : HashSet[] = toSet(["i"])
 
@@ -59,34 +51,5 @@ c:::::::cccccc:::::ch:::::h     h:::::h          4::::4        t::::::tttt:::::t
                           Mein eigentliches Element. — Mephistopheles; 
 
                                 Zitat aus: Johann Wolfgang von Goethe – Faust. Eine Tragödie.
-                        
-
-            ""libch4t is an experimental chat library that
-            tries to provide access to one chat realm from different protocols.""
-
-        What it should be when it's finished:
-
-          An multi protocol chat server library, that lets
-          you and your friends chat with each other.
-          They can use whatever protocol/application
-          they like to connect to this chat realm.
-
-          [+] irc
-          [ ] jabber
-          [ ] http (long polling)
-          [ ] http (rest api)
-          [+] websocket (irc transport)
-          [ ] email
-          [ ] shared library api call
-          [ ] psyc http://about.psyc.eu/ | 
-
-
-        What it is at the moment:
-
-          [+] mediocre irc server (in pure nim)
-          [+] websocket to tcp transport `wsToTcp`
-          [+] http page with websocket transport to irc
-            -> Chat over IRC and over HTTP/WEBSOCKET.
-          [/] stable api, atm its just a toy.
-
+    
         """

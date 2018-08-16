@@ -18,7 +18,7 @@ import ircParsing
 import ircNetFuncs
 import config
 
-proc hanTAway*(ircServer: IrcServer, client: var Client, line: IrcLineIn) =
+proc hanTAway*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   ## Set the away msg of a user
   var awayMessage: string
   if line.command != TAway: return
@@ -38,10 +38,10 @@ proc hanTNames*(ircServer: IrcServer, client: Client, line: IrcLineIn ) =
     ircServer.sendTNames(client, line.params[0])
 
 proc hanTMotd*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
-  if line.command == TMotd:
-    ircServer.sendMotd(client, MOTD)
+  if line.command != TMotd: return
+  ircServer.sendMotd(client, MOTD)
 
-proc hanTPass*(ircServer: IrcServer, client: var Client, line: IrcLineIn) =
+proc hanTPass*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   # Command: PASS
   # Parameters: <password> <version> <flags> [<options>]
   if line.command != TPass: return
@@ -50,89 +50,85 @@ proc hanTPass*(ircServer: IrcServer, client: var Client, line: IrcLineIn) =
   client.connectionPassword = line.params[0]
 
 proc hanTUser*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
-  if line.command == TUser:
-    if line.params.len > 0:
-      # TODO here we should check if the user is already logged in and if its registered
-      # we should additionally check the password
-      var user = line.params[0]
-      if  (user != "") and (user.validUserName() == true) and (not  ircServer.isUsernameUsed(user)):
-        client.user = user
-        # echo("GOT VALID USER FROM: " & $client)
-      else:
-        echo("GOT INVALID USER / user already in use")  # FROM: " & $client)
-
-proc hanTNick*(ircServer: IrcServer, client: var Client, line: IrcLineIn) =
-  ## TODO should change username in clients and rooms
-  ## atm this is only working for the login
-  if line.command == TNick:
+  if line.command != TUser: return
+  if line.params.len > 0:
     # TODO here we should check if the user is already logged in and if its registered
     # we should additionally check the password
-    var nick: string = ""
-    if line.params.len > 0:
-      nick = line.params[0] #.strip()
-    elif line.trailer != "":
-      nick = line.trailer
+    var user = line.params[0]
+    if  (user != "") and (user.validUserName() == true) and (not  ircServer.isUsernameUsed(user)):
+      client.user = user
+      # echo("GOT VALID USER FROM: " & $client)
     else:
-      echo("got no user from ",  repr client)
-      return
+      echo("GOT INVALID USER / user already in use")  # FROM: " & $client)
 
-    if (nick != "") and (nick.validUserName()) and (not ircServer.isNicknameUsed(nick)):
-      echo "user ", repr client, " changed nickname to :" , nick
-      var oldnickname = client.nick
-      client.nick = nick
-      if not client.authenticated(): return # for use in ircAuth
-      ircServer.clients[client.user] = client
+proc hanTNick*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
+  ## TODO should change username in clients and rooms
+  ## atm this is only working for the login
+  if line.command != TNick: return
+  # TODO here we should check if the user is already logged in and if its registered
+  # we should additionally check the password
+  var nick: string = ""
+  if line.params.len > 0:
+    nick = line.params[0] #.strip()
+  elif line.trailer != "":
+    nick = line.trailer
+  else:
+    echo("got no user from ",  repr client)
+    return
 
-      # we inform our own client that we have sucessfully changed the nickname
-      discard client.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
+  if (nick != "") and (nick.validUserName()) and (not ircServer.isNicknameUsed(nick)):
+    echo "user ", repr client, " changed nickname to :" , nick
+    var oldnickname = client.nick
+    client.nick = nick
+    if not client.authenticated(): return # for use in ircAuth
+    ircServer.clients[client.user] = client
 
-      # now we inform every user that should know about our namechange that we have changed names.
-      for usernameToAnswer in ircServer.getParticipatingUsersByNick(client.nick):
-        var foundClient = ircServer.clients[usernameToAnswer]
-        discard foundClient.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
-    else:
-      echo("GOT INVALID NICK / nickname in use FROM: " & repr client)      
+    # we inform our own client that we have sucessfully changed the nickname
+    discard client.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
+
+    # now we inform every user that should know about our namechange that we have changed names.
+    for usernameToAnswer in ircServer.getParticipatingUsersByNick(client.nick):
+      var foundClient = ircServer.clients[usernameToAnswer]
+      discard foundClient.sendToClient(forgeAnswer(newIrcLineOut(oldnickname, TNick, @[], client.nick )))
+  else:
+    echo("GOT INVALID NICK / nickname in use FROM: " & repr client)      
 
 proc hanTPing*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   # ping
   # ping 1234
   # ping :123
   # ping 1234 :5678
-  if line.command == TPing:
-    if line.params.len == 0 and line.trailer == "":
-      # ping
-      discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], ""))) # pong
-    elif line.params.len == 0 and line.trailer != "":
-      # ping :1234
-      discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], line.trailer)))
-    elif line.params.len != 0 and line.trailer == "":
-      # ping 1234
-      discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], join(line.params," ") )))
-    elif (line.params.len() > 0 and line.trailer.len == 0) or (line.params.len == 0 and line.trailer.len > 0) or (line.params.len > 0 and line.trailer.len > 0):
-      # discard client.sendToClient(forgeAnswer((SERVER_NAME, TPong, @[], answer)))
-      discard #TODO debug
+  if line.command != TPing: return
+  if line.params.len == 0 and line.trailer == "":
+    # ping
+    discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], ""))) # pong
+  elif line.params.len == 0 and line.trailer != "":
+    # ping :1234
+    discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], line.trailer)))
+  elif line.params.len != 0 and line.trailer == "":
+    # ping 1234
+    discard client.sendToClient(forgeAnswer(newIrcLineOut(SERVER_NAME, TPong, @[], join(line.params," ") )))
+  elif (line.params.len() > 0 and line.trailer.len == 0) or (line.params.len == 0 and line.trailer.len > 0) or (line.params.len > 0 and line.trailer.len > 0):
+    # discard client.sendToClient(forgeAnswer((SERVER_NAME, TPong, @[], answer)))
+    discard #TODO debug
 
 proc hanTPong*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   # if line.toUpper.startsWith(TPong):
-  if line.command == TPong:
-    # We always want to choose the `first` one,
-    # even if there was another trailer etc attached.
-    var pingChallenge: string
-    if line.params.len > 0:
-      pingChallenge = line.params[0]
-    elif line.trailer != "":
-      pingChallenge = line.trailer
-    else:
-      pingChallenge = ""
-    # echo("got PONG from: " & $client & " with challenge: " & pingChallenge )        
+  if line.command != TPong: return
+  # We always want to choose the `first` one,
+  # even if there was another trailer etc attached.
+  var pingChallenge: string
+  if line.params.len > 0:
+    pingChallenge = line.params[0]
+  elif line.trailer != "":
+    pingChallenge = line.trailer
+  else:
+    pingChallenge = ""
+  # echo("got PONG from: " & $client & " with challenge: " & pingChallenge )        
 
 proc hanTJoin*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
-  var 
-      roomnamesToJoin: seq[string] = @[]
-
-  if line.command != TJoin:
-    return
-
+  if line.command != TJoin: return
+  var roomnamesToJoin: seq[string] = @[]
   if line.isParamList():
     ## eg: JOIN #kl,#ai
     for part in line.getParamList():
@@ -171,11 +167,8 @@ proc hanTJoin*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
 
 proc hanTPart*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
   # disconnect from a channel
-  if line.command != TPart:
-    return 
-
+  if line.command != TPart: return 
   var roomsToLeave: seq[string] = @[]
-  
   if line.params.len > 0:
     # if '*' we leave all rooms 
     if line.params[0] == "*":
@@ -191,9 +184,7 @@ proc hanTPart*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
       try:  
         if ircServer.rooms[room].clients.contains(client.user):
           ircServer.sendToRoom(ircServer.rooms[room], forgeAnswer( newIrcLineOut(client.nick,TPart,@[room],line.trailer)))
-          # rooms.mget(room).clients.excl(client.user)
           ircServer.rooms[room].clients.excl(client.user)
-
         if ircServer.rooms[room].clients.len == 0:
           echo "room is empty remove it 161 ", room
           ircServer.rooms.del(room)          
@@ -202,58 +193,58 @@ proc hanTPart*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
 
 
 proc hanTPrivmsg*(ircServer: IrcServer, client:Client, line: IrcLineIn) =
-  if line.command == TPrivmsg:
-    var newTrailer = line.trailer
+  if line.command != TPrivmsg: return
+  var newTrailer = line.trailer
 
-    # some clients forget the ":" iF only one word is given
-    if line.params.len > 1:
-      newTrailer = line.params[1] & newTrailer
+  # some clients forget the ":" iF only one word is given
+  if line.params.len > 1:
+    newTrailer = line.params[1] & newTrailer
 
-    if line.params.len > 0: # we have to check if we have enough parameters
-      if line.params[0].startswith("#") or line.params[0].startswith("&"):
-        let roomToSend = line.params[0]
-        # we send to a room historically a room in irc could start with '#' or '&''
-  
-        if ircServer.rooms.contains(roomToSend):
-          if ircServer.rooms[roomToSend].clients.contains(client.user): 
-            # check if a user has joined the room (only then allowed to write)
-            for connectedClient in ircServer.rooms[roomToSend].clients:
-              let answer = forgeAnswer(newIrcLineOut(client.nick,TPrivmsg,@[roomToSend], newTrailer))
-              if connectedClient != client.user: #exlude ourself
-                echo $TPrivmsg, " to " , connectedClient , " -> " , answer.strip()
-                discard ircServer.clients[connectedClient].sendToClient(answer)
-      else:
-        # this is a private message to a user
-        var clientToAnswer = ircServer.getClientByNick(line.params[0])
-        if clientToAnswer.nick == line.params[0]:
-          # Send private message to receiver
-          let answer = forgeAnswer(newIrcLineOut(client.nick, TPrivmsg, @[clientToAnswer.nick], newTrailer))
-          discard clientToAnswer.sendToClient(answer)
-          if clientToAnswer.isAway == true:
-            # Send receivers away message to sender
-            let isAwayAnswer = forgeAnswer(newIrcLineOut(clientToAnswer.nick, TPrivmsg, @[clientToAnswer.nick], clientToAnswer.away))
-            discard client.sendToClient(isAwayAnswer)
-          else:
-            echo "Client is available: ", repr client
+  if line.params.len > 0: # we have to check if we have enough parameters
+    if line.params[0].startswith("#") or line.params[0].startswith("&"):
+      let roomToSend = line.params[0]
+      # we send to a room historically a room in irc could start with '#' or '&''
+
+      if ircServer.rooms.contains(roomToSend):
+        if ircServer.rooms[roomToSend].clients.contains(client.user): 
+          # check if a user has joined the room (only then allowed to write)
+          for connectedClient in ircServer.rooms[roomToSend].clients:
+            let answer = forgeAnswer(newIrcLineOut(client.nick,TPrivmsg,@[roomToSend], newTrailer))
+            if connectedClient != client.user: #exlude ourself
+              echo $TPrivmsg, " to " , connectedClient , " -> " , answer.strip()
+              discard ircServer.clients[connectedClient].sendToClient(answer)
+    else:
+      # this is a private message to a user
+      var clientToAnswer = ircServer.getClientByNick(line.params[0])
+      if clientToAnswer.nick == line.params[0]:
+        # Send private message to receiver
+        let answer = forgeAnswer(newIrcLineOut(client.nick, TPrivmsg, @[clientToAnswer.nick], newTrailer))
+        discard clientToAnswer.sendToClient(answer)
+        if clientToAnswer.isAway == true:
+          # Send receivers away message to sender
+          let isAwayAnswer = forgeAnswer(newIrcLineOut(clientToAnswer.nick, TPrivmsg, @[clientToAnswer.nick], clientToAnswer.away))
+          discard client.sendToClient(isAwayAnswer)
         else:
-          echo("Nick:", line.params[0], " not found")
+          echo "Client is available: ", repr client
+      else:
+        echo("Nick:", line.params[0], " not found")
 
 proc hanTWho*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
-  if line.command == TWho:
-    # TODO here we should check if the user is already logged in or joined a channel
-    # and if its registered
-    # we should additionally check the password
-    if line.params.len > 0:
-      for room in line.params[0].split(","):
-        if validRoomName(room):
-          if ircServer.rooms.contains(room):
-            for clientName in ircServer.rooms[room].clients:
-              var joinedClient = ircServer.clients[clientName]
-              var answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T352,@[client.nick,room,joinedClient.nick, "shadowedDNS", SERVER_NAME, joinedClient.nick, ""],"0 dummyuser"))
-              answer = answer.removeDoubleWhite()
-              discard client.sendToClient(answer)
-            let answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T315,@[client.nick,room],"End of /WHO list"))
+  if line.command != TWho: return
+  # TODO here we should check if the user is already logged in or joined a channel
+  # and if its registered
+  # we should additionally check the password
+  if line.params.len > 0:
+    for room in line.params[0].split(","):
+      if validRoomName(room):
+        if ircServer.rooms.contains(room):
+          for clientName in ircServer.rooms[room].clients:
+            var joinedClient = ircServer.clients[clientName]
+            var answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T352,@[client.nick,room,joinedClient.nick, "shadowedDNS", SERVER_NAME, joinedClient.nick, ""],"0 dummyuser"))
+            answer = answer.removeDoubleWhite()
             discard client.sendToClient(answer)
+          let answer = forgeAnswer(newIrcLineOut(SERVER_NAME,T315,@[client.nick,room],"End of /WHO list"))
+          discard client.sendToClient(answer)
 
 proc hanTLusers*(ircServer: IrcServer, client: Client, line: IrcLineIn) = 
   ## TODO
@@ -269,14 +260,11 @@ proc hanTLusers*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
 proc hanTList*(ircServer: IrcServer, client: Client, line: IrcLineIn) = 
   ## returns a list of all rooms if no param given
   ## if params given list only them 
-  if line.command != TList:
-    return 
-
+  if line.command != TList: return 
   var 
       roomNamesToList: seq[string] = @[]
       output: string = ""
       room: Room
-
   if line.isParamList():
     ## param is like: #foo,#baa
     roomNamesToList = line.getParamList()
@@ -288,7 +276,6 @@ proc hanTList*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
     ## no params are given so we list every known room.
     for room in ircServer.rooms.values:
         roomNamesToList.add(room.name)    
-
   ## Build the answer
   output.add(forgeAnswer(newIrcLineOut(SERVER_NAME,T321,@[client.nick,"Channel","Users"],"Name")))
   for roomName in roomNamesToList:
@@ -317,12 +304,10 @@ proc genDebugStr(ircServer: IrcServer): string =
         result.add "-- cl: "  & cl & "  " & (repr ircServer.clients[cl]) & "\n"
 
 proc hanTDump*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
-  if line.command == TDump:
-    for part in ircServer.genDebugStr().split("\n"):
-      discard client.sendToClient( forgeAnswer(newIrcLineOut(SERVER_NAME, TPrivmsg, @[client.nick], part )) )  
+  if line.command != TDump: return
+  for part in ircServer.genDebugStr().split("\n"):
+    discard client.sendToClient( forgeAnswer(newIrcLineOut(SERVER_NAME, TPrivmsg, @[client.nick], part )) )  
 
 proc hanTDebug*(ircServer: IrcServer, client: Client, line: IrcLineIn) =
-  if line.command == TDebug:
-    echo ircServer.genDebugStr()
-
-
+  if line.command != TDebug: return
+  echo ircServer.genDebugStr()

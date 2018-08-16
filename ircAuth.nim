@@ -26,8 +26,6 @@ proc handleIrcAuth*(ircServer: IrcServer, aClient: Client): Future[bool] {.async
   var line: string = ""
   var pingGood: bool = false
 
-
-  
   while true:
     try:
       line = await client.socket.recvLine()
@@ -49,7 +47,8 @@ proc handleIrcAuth*(ircServer: IrcServer, aClient: Client): Future[bool] {.async
     ircServer.hanTPass(client, ircLineIn)
     if SERVER_PASSWORD_ENABLED and client.connectionPassword != SERVER_PASSWORD: #TODO:
       echo "server password wrong"
-      return false
+      # return false
+      continue
 
     ircServer.hanTUser(client, ircLineIn)
     ircServer.hanTNick(client, ircLineIn)
